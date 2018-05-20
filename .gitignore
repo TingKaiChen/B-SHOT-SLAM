@@ -1,7 +1,7 @@
 # Directory
-bin/
-build/
-data/
+bin/*
+build/*
+data/*
 # test/
 
 

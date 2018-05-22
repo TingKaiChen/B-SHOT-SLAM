@@ -49,7 +49,7 @@ namespace velodyne
         unsigned char id;
         long long time;
 
-        const bool operator < ( const struct Laser& laser ){
+        const bool operator < ( const struct Laser& laser ) const{
             if( azimuth == laser.azimuth ){
                 return id < laser.id;
             }

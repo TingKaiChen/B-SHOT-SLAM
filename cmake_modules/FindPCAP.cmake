@@ -70,14 +70,14 @@ if(EXISTS $ENV{PCAP_DIR})
   find_path(
     PCAP_INCLUDE_DIR
     NAMES pcap/pcap.h pcap.h
-    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/include
+    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/local/include $ENV{PCAP_DIR}/include
     NO_DEFAULT_PATH
   )
 
   find_path(
     PCAP_LIBRARY_DIR
     NAMES lib${_PCAP_LIBRARY_NAME}.a lib${_PCAP_LIBRARY_NAME}.so lib${_PCAP_LIBRARY_NAME}.lib
-    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/lib/x86_64-linux-gnu/ $ENV{PCAP_DIR}/Lib
+    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/local/lib $ENV{PCAP_DIR}/lib/x86_64-linux-gnu/ $ENV{PCAP_DIR}/lib $ENV{PCAP_DIR}/Lib
     PATH_SUFFIXES ${_TARGET_PLATFORM}
     NO_DEFAULT_PATH
   )
@@ -85,7 +85,7 @@ if(EXISTS $ENV{PCAP_DIR})
   find_library(
     PCAP_LIBRARY
     NAMES ${_PCAP_LIBRARY_NAME}
-    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/lib/x86_64-linux-gnu/ $ENV{PCAP_DIR}/Lib
+    PATHS $ENV{PCAP_DIR} $ENV{PCAP_DIR}/local/lib $ENV{PCAP_DIR}/lib/x86_64-linux-gnu/ $ENV{PCAP_DIR}/lib $ENV{PCAP_DIR}/Lib
     PATH_SUFFIXES ${_TARGET_PLATFORM}
     NO_DEFAULT_PATH
   )

@@ -1,3 +1,8 @@
+// Include MySLAM
+#include "common_include.h"
+#include "VelodyneCapture.h"
+#include "frame.h"
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -7,9 +12,8 @@
 #include <string>
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz.hpp>
+#include <opencv2/core/eigen.hpp>
 
-// Include VelodyneCapture Header
-#include "VelodyneCapture.h"
 
 typedef cv::viz::Viz3d VizViewer;
 
@@ -34,10 +38,13 @@ int main( int argc, char* argv[] )
     // Register Callback
     viewer.registerKeyboardCallback(KeyboardCallback, &viewer);
 
-    std::vector<cv::Vec3f> buffer;
+    // Frame sequence
+    vector<myslam::Frame::Ptr> FrameSequence;
+
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
-            buffer.clear();
+            // Create a pointcloud smart pointer
+            myslam::Frame::PCPtr pc = make_shared<vector<Vector3d>>();
             // Capture One Rotation Data
             std::vector<velodyne::Laser> lasers;
             capture >> lasers;
@@ -45,35 +52,47 @@ int main( int argc, char* argv[] )
                 continue;
             }
 
-            double max_z = 0;
-            double min_z = 0;
             // Convert to 3-dimention Coordinates
+            std::vector<cv::Vec3d> buffer;
             buffer.resize( lasers.size() );
+            pc->resize( lasers.size() );
             for( const velodyne::Laser& laser : lasers ){
                 const double distance = static_cast<double>( laser.distance );
                 const double azimuth  = laser.azimuth  * CV_PI / 180.0;
                 const double vertical = laser.vertical * CV_PI / 180.0;
 
-                float x = static_cast<float>( ( distance * std::cos( vertical ) ) * std::sin( azimuth ) );
-                float y = static_cast<float>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
-                float z = static_cast<float>( ( distance * std::sin( vertical ) ) );
+                double x = static_cast<double>( ( distance * std::cos( vertical ) ) * std::sin( azimuth ) );
+                double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
+                double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
-                if( x == 0.0f && y == 0.0f && z == 0.0f ){
-                    x = std::numeric_limits<float>::quiet_NaN();
-                    y = std::numeric_limits<float>::quiet_NaN();
-                    z = std::numeric_limits<float>::quiet_NaN();
+                if( x == 0.0 && y == 0.0 && z == 0.0 ){
+                    x = std::numeric_limits<double>::quiet_NaN();
+                    y = std::numeric_limits<double>::quiet_NaN();
+                    z = std::numeric_limits<double>::quiet_NaN();
                 }
 
-                buffer.push_back( cv::Vec3f( x, y, z ) );
-                max_z = std::max(max_z, double(z));
-                min_z = std::min(min_z, double(z));
+                // Add a point into the point cloud
+                pc->push_back( Vector3d( x, y, z ) );
+                // Convert a point from Eigen type to OpenCV type
+                Vector3d vs = pc->back(); 
+                cv::Mat v;
+                cv::eigen2cv(Vector3d( x, y, z ), v);
+                buffer.push_back( v );
             }
 
+            // Create a frame
+            myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
+            fptr->setPointCloud(pc);
+            FrameSequence.push_back(fptr);
             // Create Widget
-            cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_32FC3, &buffer[0] );
+            cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
+            // cv::Mat cloudMat = cv::Mat( static_cast<int>( pc->size() ), 1, CV_64FC3, &(pc->at(0)) );
+            // cv::Mat cloudMat = cv::Mat( static_cast<int>( pc->size() ), 1, CV_64FC3, &((FrameSequence.back()->pointcloud_)->at(0)) );
+            // cout<<cloudMat.size[0]<<" "<<pc->size()<<endl;
             cv::viz::WCloud cloud( cloudMat );
             // Show Point Cloud
             viewer.showWidget( "Cloud", cloud );
+        // isStop = true;
         }
         viewer.spinOnce();
     }

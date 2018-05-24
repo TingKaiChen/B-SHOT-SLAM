@@ -11,7 +11,7 @@ namespace myslam
     {
     public:
         typedef std::shared_ptr<Frame> Ptr;
-        typedef std::shared_ptr<vector<Vector3d>*> PCPtr;
+        typedef std::shared_ptr<vector<Vector3d>> PCPtr;
         typedef std::shared_ptr<vector<std::bitset<352>>*> DCPPtr;
         unsigned long                  id_;         // id of this frame
         long long                      timestamp_;  // when it is recorded

@@ -1,5 +1,7 @@
 add_library( myslam SHARED
     ViewerHandler.cpp
+    frame.cpp
+    lidar_odometry.cpp
 )
 
 target_link_libraries( myslam

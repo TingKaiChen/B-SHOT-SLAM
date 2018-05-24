@@ -5,6 +5,11 @@ set( CMAKE_CXX_COMPILER "g++" )
 set( CMAKE_BUILD_TYPE "Release" )
 set( CMAKE_CXX_FLAGS "-std=c++11 -march=native -O3" )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++11 -march=native -O3")
+endif()
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
 set( EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin )
@@ -33,6 +38,8 @@ if( OpenCV_STATIC AND MSVC )
   endforeach()
 endif()
 
+# PCL
+find_package(PCL 1.7.2 REQUIRED)
 # Sophus 
 find_package( Sophus REQUIRED )
 # G2O
@@ -65,8 +72,10 @@ endif()
 add_definitions( ${Boost_LIB_DIAGNOSTIC_DEFINITIONS} )
 add_definitions( ${HAVE_BOOST} )
 add_definitions( ${HAVE_PCAP} )
+add_definitions( ${PCL_DEFINITIONS})
 
 set( THIRD_PARTY_LIBS 
+    ${PCL_LIBRARIES}
     ${OpenCV_LIBS}
     ${Sophus_LIBRARIES}
     g2o_core g2o_stuff g2o_types_sba
@@ -74,6 +83,7 @@ set( THIRD_PARTY_LIBS
     ${Boost_LIBRARIES}
     ${PCAP_LIBRARIES}
 )
+include_directories( ${PCL_INCLUDE_DIRS} )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${Sophus_INCLUDE_DIRS} )
 include_directories( ${G2O_INCLUDE_DIRS} )

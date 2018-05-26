@@ -44,6 +44,10 @@
 #include <pcl/console/print.h>
 #include <pcl/console/parse.h>
 #include <pcl/console/time.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/common/geometry.h>
+#include <pcl/common/impl/centroid.hpp>
+
 #include <string>
 #include <fstream>
 #include <string>

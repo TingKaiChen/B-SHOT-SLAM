@@ -2,6 +2,7 @@
 #include "common_include.h"
 #include "VelodyneCapture.h"
 #include "frame.h"
+#include "lidar_odometry.h"
 
 #include <iostream>
 #include <vector>
@@ -25,7 +26,7 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Open VelodyneCapture that retrieve from PCAP
-    velodyne::HDL32ECapture capture( argv[1], 0 );
+    velodyne::HDL32ECapture capture( argv[1], 11 );
 
     if( !capture.isOpen() ){
         std::cerr << "Can't open VelodyneCapture." << std::endl;
@@ -40,6 +41,7 @@ int main( int argc, char* argv[] )
 
     // Frame sequence
     vector<myslam::Frame::Ptr> FrameSequence;
+    myslam::LidarOdometry lo;
 
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
@@ -56,7 +58,9 @@ int main( int argc, char* argv[] )
             std::vector<cv::Vec3d> buffer;
             buffer.resize( lasers.size() );
             pc->resize( lasers.size() );
+
             for( const velodyne::Laser& laser : lasers ){
+                // Distance unit: mm
                 const double distance = static_cast<double>( laser.distance );
                 const double azimuth  = laser.azimuth  * CV_PI / 180.0;
                 const double vertical = laser.vertical * CV_PI / 180.0;
@@ -65,10 +69,13 @@ int main( int argc, char* argv[] )
                 double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
                 double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
+                if(z<-0.5) continue;
+
                 if( x == 0.0 && y == 0.0 && z == 0.0 ){
                     x = std::numeric_limits<double>::quiet_NaN();
                     y = std::numeric_limits<double>::quiet_NaN();
                     z = std::numeric_limits<double>::quiet_NaN();
+                    continue;
                 }
 
                 // Add a point into the point cloud
@@ -84,14 +91,39 @@ int main( int argc, char* argv[] )
             myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
             fptr->setPointCloud(pc);
             FrameSequence.push_back(fptr);
+            cout<<"size of pointcloud: "<<fptr->getPointCloud()->size()<<endl;
+            // Test lidar odometry
+            if(lo.isInitial()){
+                lo.setSrcFrame(fptr);                
+                lo.setRefFrame(fptr);                
+                lo.extractKeypoints();
+            }
+            else{
+                lo.passSrc2Ref();
+                lo.setSrcFrame(fptr);
+                lo.extractKeypoints();
+            }
             // Create Widget
-            // cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
-            cv::Mat cloudMat = cv::Mat( static_cast<int>( pc->size() ), 1, CV_64FC3, &(pc->at(0)) );
-            // cv::Mat cloudMat = cv::Mat( static_cast<int>( pc->size() ), 1, CV_64FC3, &((FrameSequence.back()->pointcloud_)->at(0)) );
-            // cout<<cloudMat.size[0]<<" "<<pc->size()<<endl;
+            cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
             cv::viz::WCloud cloud( cloudMat );
             // Show Point Cloud
             viewer.showWidget( "Cloud", cloud );
+
+            myslam::Frame::PCPtr kpsptr = lo.getKeypoints();
+            vector<cv::Vec3d> buffer2;
+            buffer2.resize( int(kpsptr->size())/10 );
+            for(int i = 0; i < int(kpsptr->size())/10; i++){
+                cv::Mat v;
+                cv::eigen2cv((*kpsptr)[i], v);
+                buffer2.push_back( v );
+            }
+            // Create Widget
+            cv::Mat cloudMat2 = cv::Mat( static_cast<int>( buffer2.size() ), 1, CV_64FC3, &buffer2[0] );
+            cv::viz::WCloud cloud2( cloudMat2, cv::viz::Color::yellow() );
+            cloud2.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            // Show Point Cloud
+            viewer.showWidget( "Cloud2", cloud2 );
+
         isStop = true;
         }
         viewer.spinOnce();

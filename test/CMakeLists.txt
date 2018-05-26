@@ -3,3 +3,6 @@ target_link_libraries( ptpicking myslam )
 
 add_executable( showPC ShowPointCloud.cpp )
 target_link_libraries( showPC myslam )
+
+add_executable( odometry_test odometry_test.cpp )
+target_link_libraries( odometry_test myslam )

@@ -3,6 +3,7 @@ project ( myslam )
 
 set( CMAKE_CXX_COMPILER "g++" )
 set( CMAKE_BUILD_TYPE "Release" )
+# set( CMAKE_BUILD_TYPE "Debug" )
 set( CMAKE_CXX_FLAGS "-std=c++11 -march=native -O3" )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 find_package(OpenMP)
@@ -10,6 +11,7 @@ if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++11 -march=native -O3")
 endif()
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
 set( EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin )
@@ -17,6 +19,8 @@ set( LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib )
 
 ############### dependencies ######################
 # Eigen
+# Note: Eigen >= 3.3.0 would cause double free error when coorporating w/ PCL
+# Other solution: include Eigen directory after the PCL's
 include_directories( "/usr/local/include/eigen3" )
 # OpenCV
 # find_package( OpenCV 3.1 REQUIRED )
@@ -40,6 +44,7 @@ endif()
 
 # PCL
 find_package(PCL 1.7.2 REQUIRED)
+
 # Sophus 
 find_package( Sophus REQUIRED )
 # G2O

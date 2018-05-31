@@ -17,7 +17,7 @@ namespace myslam{
 		ref_pcl_.height = 1;
 		ref_pcl_.points.resize(refptr->size());
 		int i = 0;
-		for(vector<Vector3d>::iterator it = refptr->begin(); it != refptr->end(); it++){
+		for(vector<Vector3f>::iterator it = refptr->begin(); it != refptr->end(); it++){
 			// ref_pcl_.push_back(pcl::PointXYZ((*it)[0], (*it)[1], (*it)[2]));
 			ref_pcl_.points[i++] = pcl::PointXYZ((*it)[0], (*it)[1], (*it)[2]);
 		}
@@ -32,7 +32,7 @@ namespace myslam{
 		src_pcl_.height = 1;
 		src_pcl_.points.resize(srcptr->size());
 		int i = 0;
-		for(vector<Vector3d>::iterator it = srcptr->begin(); it != srcptr->end(); it++){
+		for(vector<Vector3f>::iterator it = srcptr->begin(); it != srcptr->end(); it++){
 			// src_pcl_.push_back(pcl::PointXYZ((*it)[0], (*it)[1], (*it)[2]));
 			src_pcl_.points[i++] = pcl::PointXYZ((*it)[0], (*it)[1], (*it)[2]);
 		}
@@ -60,6 +60,7 @@ namespace myslam{
         	vector<int> ptIdxRadSearch;
         	vector<float> ptRadSqarDistance;
         	float radius = 3000.0f;
+        	// float radius = 3000.0f*Vector3f(searchPoint.x, searchPoint.y, searchPoint.z).norm()/50000.0f;
         	if(kdtree.radiusSearch(searchPoint, radius, ptIdxRadSearch, ptRadSqarDistance) > 0){
     			// Calculate gecmetric centroid and centroid vector
     			pcl::PointXYZ centroid;
@@ -73,7 +74,7 @@ namespace myslam{
     				float negative = 0.0f;
     			} vecnum;
         		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
-        			Vector3f pt(src_pcl_.points[j].x, src_pcl_.points[j].y, src_pcl_.points[j].z);
+        			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
         			if(ctvec.dot(pt-sp) > 0)
         				vecnum.positive += 1;
         			else if(ctvec.dot(pt-sp) < 0)
@@ -91,52 +92,95 @@ namespace myslam{
         sort(SegRatio.begin(), SegRatio.end(), comparator);
         cout<<"done"<<endl;
 
-        test_ = make_shared<vector<Vector3d>>();
+        test_ = make_shared<vector<Vector3f>>();
         for(int i=0; i < SegRatio.size(); i++){
-        	test_->push_back(Vector3d(src_pcl_.points[SegRatio[i].first].x, src_pcl_.points[SegRatio[i].first].y, src_pcl_.points[SegRatio[i].first].z));       	
+        	test_->push_back(Vector3f(src_pcl_.points[SegRatio[i].first].x, src_pcl_.points[SegRatio[i].first].y, src_pcl_.points[SegRatio[i].first].z));       	
         }
-
-        // for(int i=0; i<SegRatio.size(); i++){
-        // 	cout<<SegRatio[i].second<<" ";
-        // }
-        // cout<<endl;
-
-
-
-  //       for(int i = 0; i<src_pcl_.points.size(); i++)
-  //       	if(src_pcl_.points[i].x != 0 || src_pcl_.points[i].y != 0 || src_pcl_.points[i].z != 0){
-		//         searchPoint = src_pcl_.points[i];
-		//         break;
-  //       	}
-  //       vector<int> pointIdxRadiusSearch;
-		// vector<float> pointRadiusSquaredDistance;
-		// float radius = 3000.0f;
-		// std::cout << "Neighbors within radius search at (" << searchPoint.x 
-  //           << " " << searchPoint.y 
-  //           << " " << searchPoint.z
-  //           << ") with radius=" << radius << std::endl;
-  //       if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ){
-	 //        int num = 0;
-		//     for (size_t i = 0; i < pointIdxRadiusSearch.size (); ++i, ++num){
-		//       	std::cout << "    "  <<   src_pcl_.points[ pointIdxRadiusSearch[i] ].x 
-	 //                << " " << src_pcl_.points[ pointIdxRadiusSearch[i] ].z 
-	 //                << " " << src_pcl_.points[ pointIdxRadiusSearch[i] ].y 
-	 //                << " (squared distance: " << pointRadiusSquaredDistance[i] << ")" << std::endl;
-		//     }
-		// }
-		// float dist = pcl::geometry::distance(searchPoint, src_pcl_.points[ pointIdxRadiusSearch.back() ]);
-		// cout<<"distance: "<<dist<<endl;
+        src_->setKeypoints(make_shared<vector<Vector3f>>(test_->begin()+0.9*test_->size(), test_->end()));
+        if(isInitial()){
+        	passSrc2Ref();
+	        ref_->setKeypoints(src_->getKeypoints());
+        }
+		cb.cloud1 = src_pcl_;
+        cb.cloud2 = ref_pcl_;
+		cb.cloud1_keypoints = eigen2pcl(src_->getKeypoints());
+		cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
 	}
 
 	void LidarOdometry::computeDescriptors(){
-
+	    cb.calculate_normals (3000);
+	    cb.calculate_SHOT (3000);
+	    cb.compute_bshot();
 	}
 
 	void LidarOdometry::featureMatching(){
+		pcl::Correspondences corresp;
+
+	    int *dist = new int[std::max(cb.cloud1_bshot.size(), cb.cloud2_bshot.size())];
+	    int *left_nn = new int[cb.cloud1_bshot.size()];
+	    int *right_nn = new int[cb.cloud2_bshot.size()];
+
+	    int min_ix;
+	    for (int i=0; i<(int)cb.cloud1_bshot.size(); ++i)
+	    {
+	        for (int k=0; k<(int)cb.cloud2_bshot.size(); ++k)
+	        {
+	            dist[k] = (int)( cb.cloud1_bshot[i].bits ^ cb.cloud2_bshot[k].bits).count();
+	        }
+	        minVect(dist, (int)cb.cloud2_bshot.size(), &min_ix);
+	        left_nn[i] = min_ix;
+	    }
+	    for (int i=0; i<(int)cb.cloud2_bshot.size(); ++i)
+	    {
+	        for (int k=0; k<(int)cb.cloud1_bshot.size(); ++k)
+	            dist[k] = (int)(cb.cloud2_bshot[i].bits ^ cb.cloud1_bshot[k].bits).count();
+	        minVect(dist, (int)cb.cloud1_bshot.size(), &min_ix);
+	        right_nn[i] = min_ix;
+	    }
+
+	    for (int i=0; i<(int)cb.cloud1_bshot.size(); ++i)
+	        if (right_nn[left_nn[i]] == i)
+	        {
+	            pcl::Correspondence corr;
+	            corr.index_query = i;
+	            corr.index_match = left_nn[i];
+	            corresp.push_back(corr);
+	        }
+
+	    delete [] dist;
+	    delete [] left_nn;
+	    delete [] right_nn;
+
+	    /// RANSAC BASED Correspondence Rejection
+	    pcl::CorrespondencesConstPtr correspond = boost::make_shared< pcl::Correspondences >(corresp);
+
+	    pcl::Correspondences corr;
+	    Ransac_based_Rejection.setInputSource(cb.cloud1_keypoints.makeShared());
+	    Ransac_based_Rejection.setInputTarget(cb.cloud2_keypoints.makeShared());
+	    double sac_threshold = 1000;// default PCL value..can be changed and may slightly affect the number of correspondences
+	    Ransac_based_Rejection.setInlierThreshold(sac_threshold);
+	    Ransac_based_Rejection.setInputCorrespondences(correspond);
+	    Ransac_based_Rejection.getCorrespondences(corr);
 
 	}
 
 	void LidarOdometry::poseEstimation(){
-
+	    Eigen::Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	    // cout << "Mat : \n" << mat << endl;
+	    src_->setPose(SE3(mat*ref_->getPose().matrix()));
 	}
+
+	pcl::PointCloud<pcl::PointXYZ> LidarOdometry::eigen2pcl(Frame::PCPtr pcptr){
+		pcl::PointCloud<pcl::PointXYZ> pclpc;
+		pclpc.clear();
+		pclpc.width = pcptr->size();
+		pclpc.height = 1;
+		pclpc.points.resize(pcptr->size());
+		int i = 0;
+		for(vector<Vector3f>::iterator it = pcptr->begin(); it != pcptr->end(); it++){
+			pclpc.points[i++] = pcl::PointXYZ((*it)[0], (*it)[1], (*it)[2]);
+		}
+		return pclpc;
+	}
+
 }

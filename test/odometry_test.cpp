@@ -41,12 +41,14 @@ int main( int argc, char* argv[] )
 
     // Frame sequence
     vector<myslam::Frame::Ptr> FrameSequence;
+    vector<Vector3f> Keypoints;
+    vector<cv::Vec3d> Trajectory;
     myslam::LidarOdometry lo;
 
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
             // Create a pointcloud smart pointer
-            myslam::Frame::PCPtr pc = make_shared<vector<Vector3d>>();
+            myslam::Frame::PCPtr pc = make_shared<vector<Vector3f>>();
             // Capture One Rotation Data
             std::vector<velodyne::Laser> lasers;
             capture >> lasers;
@@ -56,8 +58,8 @@ int main( int argc, char* argv[] )
 
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;
-            buffer.resize( lasers.size() );
-            pc->resize( lasers.size() );
+            // buffer.resize( lasers.size() );
+            // pc->resize( lasers.size() );
 
             for( const velodyne::Laser& laser : lasers ){
                 // Distance unit: mm
@@ -69,21 +71,25 @@ int main( int argc, char* argv[] )
                 double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
                 double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
-                if(z<-0.5) continue;
-
+                // Remove ground points
+                if(z<-500) continue;
+                // Remove origin
                 if( x == 0.0 && y == 0.0 && z == 0.0 ){
                     x = std::numeric_limits<double>::quiet_NaN();
                     y = std::numeric_limits<double>::quiet_NaN();
                     z = std::numeric_limits<double>::quiet_NaN();
                     continue;
                 }
+                // Remove self-car
+                if(x <= 820 && x >= -820 && y <= 1300 && y >= -1800 && z <= 100 && z >= -2000)
+                    continue;
 
                 // Add a point into the point cloud
-                pc->push_back( Vector3d( x, y, z ) );
+                pc->push_back( Vector3f( x, y, z ) );
                 // Convert a point from Eigen type to OpenCV type
-                Vector3d vs = pc->back(); 
+                Vector3f vs = pc->back(); 
                 cv::Mat v;
-                cv::eigen2cv(Vector3d( x, y, z ), v);
+                cv::eigen2cv(Vector3f( x, y, z ), v);
                 buffer.push_back( v );
             }
 
@@ -91,40 +97,86 @@ int main( int argc, char* argv[] )
             myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
             fptr->setPointCloud(pc);
             FrameSequence.push_back(fptr);
-            cout<<"size of pointcloud: "<<fptr->getPointCloud()->size()<<endl;
+            cout<<"size of pointcloud: "<<pc->size()<<endl;
             // Test lidar odometry
             if(lo.isInitial()){
                 lo.setSrcFrame(fptr);                
-                lo.setRefFrame(fptr);                
                 lo.extractKeypoints();
+                lo.computeDescriptors();
+                lo.featureMatching();
+                lo.poseEstimation();
             }
             else{
                 lo.passSrc2Ref();
                 lo.setSrcFrame(fptr);
                 lo.extractKeypoints();
+                lo.computeDescriptors();
+                lo.featureMatching();
+                lo.poseEstimation();
             }
-            // Create Widget
+            cv::Mat v;
+            Vector3f position(fptr->getPose().matrix().topRightCorner<3,1>());
+            cv::eigen2cv(position, v);
+            Trajectory.push_back(v);
+
+            // Point cloud transformation
+            Matrix3f R = fptr->getPose().matrix().block<3,3>(0, 0);
+            Vector3f T = position;
+            int i=0;
+            for(vector<Vector3f>::iterator it = pc->begin(); it != pc->end(); it++){
+                *it = R*(*it)+T;
+                cv::Mat v;
+                cv::eigen2cv(*it, v);
+                buffer[i] = v;
+                i++;
+            }
+
+
+            // Save every frame into the map
+            // TODO: implement Map class
+
+            // Create Widget: current point cloud
             cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
             cv::viz::WCloud cloud( cloudMat );
             // Show Point Cloud
             viewer.showWidget( "Cloud", cloud );
 
-            myslam::Frame::PCPtr kpsptr = lo.getKeypoints();
-            vector<cv::Vec3d> buffer2;
-            buffer2.resize( int(kpsptr->size())/10 );
-            for(int i = 0; i < int(kpsptr->size())/10; i++){
-                cv::Mat v;
-                cv::eigen2cv((*kpsptr)[i], v);
-                buffer2.push_back( v );
+            // myslam::Frame::PCPtr kpsptr = lo.getKeypoints();
+            myslam::Frame::PCPtr kpsptr = fptr->getKeypoints();
+            for(vector<Vector3f>::iterator it = kpsptr->begin(); it != kpsptr->end(); it++){
+                Keypoints.push_back(R*(*it)+T);
             }
-            // Create Widget
+            vector<cv::Vec3d> buffer2;
+            // buffer2.resize( int(Keypoints.size()) );
+            buffer2.resize( int(kpsptr->size()) );
+            // for(int i = 0; i < Keypoints.size(); i++){
+            for(int i = 0; i < kpsptr->size(); i++){
+                cv::Mat v;
+                // cv::eigen2cv(Keypoints[i], v);
+                Vector3f kp = R*(*kpsptr)[i]+T;
+                cv::eigen2cv(kp, v);
+                buffer2[i] = v;
+            }
+            // Create Widget: keypoints
             cv::Mat cloudMat2 = cv::Mat( static_cast<int>( buffer2.size() ), 1, CV_64FC3, &buffer2[0] );
             cv::viz::WCloud cloud2( cloudMat2, cv::viz::Color::yellow() );
             cloud2.setRenderingProperty(cv::viz::POINT_SIZE, 4);
             // Show Point Cloud
             viewer.showWidget( "Cloud2", cloud2 );
 
-        isStop = true;
+            // Create Widget: trajectory
+            cv::Mat trajMat = cv::Mat( static_cast<int>( Trajectory.size() ), 1, CV_64FC3, &Trajectory[0] );
+            cv::viz::WCloud traj( trajMat, cv::viz::Color::green() );
+            traj.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            viewer.showWidget( "Trajectory", traj );
+
+            // Create current position
+            cv::viz::WCloud cur_pos(cv::Mat(1, 1, CV_64FC3, &(Trajectory.back())), cv::viz::Color::red());
+            cur_pos.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            viewer.showWidget( "Current position", cur_pos );
+
+
+        // isStop = true;
         }
         viewer.spinOnce();
     }

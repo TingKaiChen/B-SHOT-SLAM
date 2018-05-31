@@ -1,4 +1,4 @@
-add_library( myslam SHARED
+add_library( myslam
     ViewerHandler.cpp
     frame.cpp
     lidar_odometry.cpp

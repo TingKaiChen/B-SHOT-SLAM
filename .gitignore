@@ -4,6 +4,7 @@ build/*
 data/*
 # test/
 *.DS_Store
+*test.cpp
 
 
 # Prerequisites

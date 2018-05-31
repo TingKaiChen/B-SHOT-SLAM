@@ -9,44 +9,22 @@
 
 #include <dirent.h> // for looping over the files in the directory
 
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
-#include <pcl/PointIndices.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/range_image/range_image.h>
-#include <pcl/range_image/range_image_planar.h>
-#include <pcl/visualization/range_image_visualizer.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/point_cloud_color_handlers.h>
-#include <pcl/visualization/point_cloud_geometry_handlers.h>
-#include <pcl/console/parse.h>
 #include <pcl/point_cloud.h>
+#include <pcl/PointIndices.h>
 #include <pcl/common/transforms.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/common/common_headers.h>
+#include <pcl/common/geometry.h>
+#include <pcl/common/impl/centroid.hpp>
 #include <pcl/keypoints/iss_3d.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/extract_indices.h>
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/normal_3d.h>
 #include <pcl/features/shot_omp.h>
-#include <pcl/visualization/histogram_visualizer.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/common/common_headers.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_types.h>
-#include <pcl/io/vtk_lib_io.h>
-#include <pcl/io/vtk_io.h>
-#include <pcl/console/print.h>
-#include <pcl/console/parse.h>
-#include <pcl/console/time.h>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/common/geometry.h>
-#include <pcl/common/impl/centroid.hpp>
 
 #include <string>
 #include <fstream>

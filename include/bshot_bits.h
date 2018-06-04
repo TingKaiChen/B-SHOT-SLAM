@@ -1,3 +1,6 @@
+#ifndef BSHOT_BITS_H
+#define BSHOT_BITS_H
+
 #include <bshot_headers_bits.h>
 
 template< typename T >
@@ -242,6 +245,5 @@ public :
 
 };
 
-
-
+#endif
 

@@ -10,6 +10,7 @@ using Eigen::Vector3d;
 using Eigen::Vector3f;
 using Eigen::Matrix3d;
 using Eigen::Matrix3f;
+using Eigen::Matrix4f;
 
 // for Sophus
 #include <sophus/se3.hpp>
@@ -29,6 +30,8 @@ using cv::Mat;
 #include <memory>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <set>
 #include <unordered_map>
 #include <map>

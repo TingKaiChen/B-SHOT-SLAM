@@ -1,7 +1,7 @@
 #include "lidar_odometry.h"
 
 namespace myslam{
-	LidarOdometry::LidarOdometry(): ref_(nullptr), src_(nullptr), test_(nullptr){
+	LidarOdometry::LidarOdometry(): ref_(nullptr), src_(nullptr), test_(nullptr), status_(INITIAL){
 
 	}
 
@@ -114,6 +114,20 @@ namespace myslam{
 	}
 
 	void LidarOdometry::featureMatching(){
+		if(isInitial()){
+			// Reference frame initialization
+			passSrc2Ref();
+	        ref_->setKeypoints(src_->getKeypoints());
+	        cb.cloud2 = ref_pcl_;
+			cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
+		}
+		else{
+			// Find possible keypoints in global map
+            Vector3f pos(ref_->getPose().matrix().topRightCorner<3,1>());
+            float range = 80000;
+			globalMap_.getKeypoints(pos, range, cb.cloud2_keypoints, cb.cloud2_bshot);
+		}
+
 		pcl::Correspondences corresp;
 
 	    int *dist = new int[std::max(cb.cloud1_bshot.size(), cb.cloud2_bshot.size())];
@@ -138,7 +152,7 @@ namespace myslam{
 	        right_nn[i] = min_ix;
 	    }
 
-	    for (int i=0; i<(int)cb.cloud1_bshot.size(); ++i)
+	    for (int i=0; i<(int)cb.cloud1_bshot.size(); ++i){
 	        if (right_nn[left_nn[i]] == i)
 	        {
 	            pcl::Correspondence corr;
@@ -146,6 +160,8 @@ namespace myslam{
 	            corr.index_match = left_nn[i];
 	            corresp.push_back(corr);
 	        }
+	    }
+
 
 	    delete [] dist;
 	    delete [] left_nn;
@@ -162,12 +178,57 @@ namespace myslam{
 	    Ransac_based_Rejection.setInputCorrespondences(correspond);
 	    Ransac_based_Rejection.getCorrespondences(corr);
 
+	    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	    // mat = mat*ref_->getPose().matrix();	// If the pattern is frame-to-frame
+        Matrix3f R = mat.block<3,3>(0, 0);
+        Vector3f T = mat.topRightCorner<3,1>();
+	    for(int i = 0, idx = 0; i < cb.cloud1_bshot.size(); i++){
+	    	if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
+	    		idx++;
+	    		continue;
+	    	}
+	    	Vector3f kp_pos = src_->getKeypoints()->at(i);
+	    	kp_pos = R*kp_pos+T;
+	    	Keypoint::Ptr kp = Keypoint::createKeypoint(
+        		kp_pos, cb.cloud1_bshot[i]);
+        	globalMap_.addKeypoint(kp);
+	    }
+
+		cout<<"inlier size:\t"<<corr.size()<<endl;	    
+
 	}
 
 	void LidarOdometry::poseEstimation(){
 	    Eigen::Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 	    // cout << "Mat : \n" << mat << endl;
-	    src_->setPose(SE3(mat*ref_->getPose().matrix()));
+	    // src_->setPose(SE3(mat*ref_->getPose().matrix()));	// If the pattern is frame-to-frame
+	    src_->setPose(SE3(mat));	// If the pattern is frame-to-localmap
+        Vector3f pos(src_->getPose().matrix().topRightCorner<3,1>());
+        cout<<"curr pos:\t"<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<endl;
+
+	    status_ = RUN;
+	}
+
+	Frame::PCPtr LidarOdometry::getKeypoints(){
+		Frame::PCPtr kps = make_shared<vector<Vector3f>>();
+		globalMap_.getAllKeypoints(*kps);
+		return kps;
+	}
+
+	Frame::PCPtr LidarOdometry::getSrcKeypoints(){
+		Frame::PCPtr srckps = make_shared<vector<Vector3f>>();
+		for(auto& pt: cb.cloud1_keypoints.points){
+			srckps->push_back(Vector3f(pt.x, pt.y, pt.z));
+		}
+		return srckps;
+	}
+
+	Frame::PCPtr LidarOdometry::getRefKeypoints(){
+		Frame::PCPtr refkps = make_shared<vector<Vector3f>>();
+		for(auto& pt: cb.cloud2_keypoints.points){
+			refkps->push_back(Vector3f(pt.x, pt.y, pt.z));
+		}
+		return refkps;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ> LidarOdometry::eigen2pcl(Frame::PCPtr pcptr){

@@ -1,15 +1,18 @@
 #ifndef VISUALODOMETRY_H
 #define VISUALODOMETRY_H
 
-#include <common_include.h>
+#include "common_include.h"
 #include "bshot_bits.h"
-#include <frame.h>
+#include "frame.h"
+#include "map.h"
 
 namespace myslam{
 	class LidarOdometry{
 		public:
 			LidarOdometry();
 			~LidarOdometry();
+
+			enum STATUS{INITIAL, RUN};
 
 			void setRefFrame(Frame::Ptr ref);
 			void setSrcFrame(Frame::Ptr src);
@@ -18,10 +21,12 @@ namespace myslam{
 			void featureMatching();
 			void poseEstimation();
 			void passSrc2Ref();
-			bool isInitial(){return ref_ == nullptr;};
+			bool isInitial(){return status_ == INITIAL;};
 			Frame::Ptr getRefFrame(){return ref_;};
 			Frame::Ptr getSrcFrame(){return src_;};
-			Frame::PCPtr getKeypoints(){return test_;};
+			Frame::PCPtr getKeypoints();
+			Frame::PCPtr getSrcKeypoints();
+			Frame::PCPtr getRefKeypoints();
 			pcl::PointCloud<pcl::PointXYZ> eigen2pcl(Frame::PCPtr pcptr);
 		private:
 			Frame::Ptr ref_;	// Reference frame
@@ -31,6 +36,8 @@ namespace myslam{
 			pcl::PointCloud<pcl::PointXYZ> src_pcl_;	// PCL pointcloud type of source frame
 		    bshot cb;
 		    pcl::registration::CorrespondenceRejectorSampleConsensus< pcl::PointXYZ > Ransac_based_Rejection;
+			STATUS status_;		    
+		    Map globalMap_;
 	};
 }
 #endif

@@ -20,7 +20,7 @@ typedef cv::viz::Viz3d VizViewer;
 
 void KeyboardCallback(const cv::viz::KeyboardEvent&, void*);
 
-bool isStop = true;
+bool isStop = false;
 
 // ./ptpicking source.pcap outputIDX.txt inputIDX.txt
 int main( int argc, char* argv[] )
@@ -83,10 +83,10 @@ int main( int argc, char* argv[] )
                 continue;
             }
 
-            if((frame_num--) <= 0){
-                isStop = true;
-                continue;
-            }
+            // if((frame_num--) <= 0){
+            //     isStop = true;
+            //     continue;
+            // }
 
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;

@@ -3,6 +3,7 @@ add_library( myslam
     frame.cpp
     lidar_odometry.cpp
     keypoint.cpp
+    mymap.cpp
     map.cpp
 )
 

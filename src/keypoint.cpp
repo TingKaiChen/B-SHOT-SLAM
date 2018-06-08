@@ -16,7 +16,18 @@ namespace myslam{
 	// 	return make_shared<Keypoint>(factory_id_++, Vector3f(0, 0, 0), );
 	// }
 
+	// Keypoint::Ptr Keypoint::createKeypoint(Vector3f& pos, bshot_descriptor descriptor){
+	// 	return make_shared<Keypoint>(factory_id_++, pos, descriptor);
+	// }
+
 	Keypoint::Ptr Keypoint::createKeypoint(Vector3f& pos, bshot_descriptor descriptor){
-		return make_shared<Keypoint>(factory_id_++, pos, descriptor);
+		// Downsampling (grid map)
+		int prec = 10;	// Precision (mm)
+		Vector3f grid_pos(
+			int(trunc(pos[0]/prec))*prec, 
+			int(trunc(pos[1]/prec))*prec, 
+			int(trunc(pos[2]/prec))*prec);
+
+		return make_shared<Keypoint>(factory_id_++, grid_pos, descriptor);
 	}
 }

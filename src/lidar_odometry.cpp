@@ -128,6 +128,9 @@ namespace myslam{
 			globalMap_.getKeypoints(pos, range, cb.cloud2_keypoints, cb.cloud2_bshot);
 		}
 
+		cout<<"Src size:\t"<<cb.cloud1_keypoints.size()<<endl;
+		cout<<"Ref size:\t"<<cb.cloud2_keypoints.size()<<endl;
+
 		pcl::Correspondences corresp;
 
 	    int *dist = new int[std::max(cb.cloud1_bshot.size(), cb.cloud2_bshot.size())];
@@ -143,6 +146,11 @@ namespace myslam{
 	        }
 	        minVect(dist, (int)cb.cloud2_bshot.size(), &min_ix);
 	        left_nn[i] = min_ix;
+	        
+	        // pcl::Correspondence corr;
+         //    corr.index_query = i;
+         //    corr.index_match = left_nn[i];
+         //    corresp.push_back(corr);
 	    }
 	    for (int i=0; i<(int)cb.cloud2_bshot.size(); ++i)
 	    {
@@ -161,6 +169,7 @@ namespace myslam{
 	            corresp.push_back(corr);
 	        }
 	    }
+		cout<<"Cor size:\t"<<corresp.size()<<endl;
 
 
 	    delete [] dist;
@@ -179,6 +188,7 @@ namespace myslam{
 	    Ransac_based_Rejection.getCorrespondences(corr);
 
 	    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	    cout<<"Estimation done"<<endl;
 	    // mat = mat*ref_->getPose().matrix();	// If the pattern is frame-to-frame
         Matrix3f R = mat.block<3,3>(0, 0);
         Vector3f T = mat.topRightCorner<3,1>();

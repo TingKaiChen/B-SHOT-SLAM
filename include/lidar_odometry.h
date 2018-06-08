@@ -4,7 +4,8 @@
 #include "common_include.h"
 #include "bshot_bits.h"
 #include "frame.h"
-#include "map.h"
+// #include "map.h"
+#include "mymap.h"
 
 namespace myslam{
 	class LidarOdometry{

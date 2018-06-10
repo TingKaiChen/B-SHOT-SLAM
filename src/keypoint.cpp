@@ -7,8 +7,8 @@ namespace myslam{
 		// Warning: the descriptor is not initialized
 	}
 
-	Keypoint::Keypoint(unsigned long id, Vector3f& position, bshot_descriptor& descriptor)
-		: id_(id), pos_(position), descriptor_(descriptor){
+	Keypoint::Keypoint(unsigned long id, Vector3f& position, float& seg_ratio, bshot_descriptor& descriptor)
+		: id_(id), pos_(position), seg_ratio_(seg_ratio), descriptor_(descriptor){
 
 	}
 
@@ -20,7 +20,7 @@ namespace myslam{
 	// 	return make_shared<Keypoint>(factory_id_++, pos, descriptor);
 	// }
 
-	Keypoint::Ptr Keypoint::createKeypoint(Vector3f& pos, bshot_descriptor descriptor){
+	Keypoint::Ptr Keypoint::createKeypoint(Vector3f& pos, float seg_ratio, bshot_descriptor descriptor){
 		// Downsampling (grid map)
 		int prec = 10;	// Precision (mm)
 		Vector3f grid_pos(
@@ -28,6 +28,6 @@ namespace myslam{
 			int(trunc(pos[1]/prec))*prec, 
 			int(trunc(pos[2]/prec))*prec);
 
-		return make_shared<Keypoint>(factory_id_++, grid_pos, descriptor);
+		return make_shared<Keypoint>(factory_id_++, grid_pos, seg_ratio, descriptor);
 	}
 }

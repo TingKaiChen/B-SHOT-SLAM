@@ -23,7 +23,8 @@ namespace myslam{
 				}
 			};
 			typedef shared_ptr<Map> Ptr;
-			typedef unordered_map<Vector3f, Keypoint::Ptr, MapHasher> Vecmap;
+			typedef unordered_map<Vector3f, Keypoint::Ptr, MapHasher> Block;
+			typedef unordered_map<unsigned long, Block> BlockMap;
 			Map(){};
 
 			void addKeypoint(Keypoint::Ptr keypoint);
@@ -33,13 +34,15 @@ namespace myslam{
 				pcl::PointCloud<pcl::PointXYZ>& kpts_pos, 
 				vector<bshot_descriptor>& descriptors);
 			void getAllKeypoints(vector<Vector3f>& vec);
+			unsigned long getBlockID(Vector3f pos);
+			int size();
 			inline pcl::PointXYZ eigenPt2PclPt(Vector3f pt){
 				return pcl::PointXYZ(pt[0], pt[1], pt[2]);
 			};
 
 		private:
 			// unordered_map<unsigned long, Keypoint::Ptr> keypoints_;
-			unordered_map<Vector3f, Keypoint::Ptr, MapHasher> keypoints_;
+			BlockMap keypoints_;
 			int prec = 10000;	// Map's grid size (mm)
 	};
 }

@@ -38,6 +38,7 @@ namespace myslam{
 		    bshot cb;
 		    pcl::registration::CorrespondenceRejectorSampleConsensus< pcl::PointXYZ > Ransac_based_Rejection;
 			STATUS status_;		    
+			vector<float> seg_ratios_;
 		    Map globalMap_;
 	};
 }

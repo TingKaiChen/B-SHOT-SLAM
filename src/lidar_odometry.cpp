@@ -96,7 +96,12 @@ namespace myslam{
         for(int i=0; i < SegRatio.size(); i++){
         	test_->push_back(Vector3f(src_pcl_.points[SegRatio[i].first].x, src_pcl_.points[SegRatio[i].first].y, src_pcl_.points[SegRatio[i].first].z));       	
         }
-        src_->setKeypoints(make_shared<vector<Vector3f>>(test_->begin()+0.9*test_->size(), test_->end()));
+        src_->setKeypoints(make_shared<vector<Vector3f>>(test_->begin()+0.95*test_->size(), test_->end()));
+        seg_ratios_.clear();
+        seg_ratios_.reserve(0.01*test_->size());
+        for(auto it = SegRatio.begin()+0.99*test_->size(); it != SegRatio.end(); it++){
+        	seg_ratios_.push_back(it->second);
+        }
         if(isInitial()){
         	passSrc2Ref();
 	        ref_->setKeypoints(src_->getKeypoints());
@@ -130,6 +135,7 @@ namespace myslam{
 
 		cout<<"Src size:\t"<<cb.cloud1_keypoints.size()<<endl;
 		cout<<"Ref size:\t"<<cb.cloud2_keypoints.size()<<endl;
+		cout<<"add size:\t"<<globalMap_.size()<<endl;
 
 		pcl::Correspondences corresp;
 
@@ -146,7 +152,7 @@ namespace myslam{
 	        }
 	        minVect(dist, (int)cb.cloud2_bshot.size(), &min_ix);
 	        left_nn[i] = min_ix;
-	        
+
 	        // pcl::Correspondence corr;
          //    corr.index_query = i;
          //    corr.index_match = left_nn[i];
@@ -200,7 +206,7 @@ namespace myslam{
 	    	Vector3f kp_pos = src_->getKeypoints()->at(i);
 	    	kp_pos = R*kp_pos+T;
 	    	Keypoint::Ptr kp = Keypoint::createKeypoint(
-        		kp_pos, cb.cloud1_bshot[i]);
+        		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
         	globalMap_.addKeypoint(kp);
 	    }
 

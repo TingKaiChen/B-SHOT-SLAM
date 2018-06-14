@@ -14,7 +14,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz.hpp>
 #include <opencv2/core/eigen.hpp>
-
+#include <pcl/correspondence.h>
 
 typedef cv::viz::Viz3d VizViewer;
 
@@ -71,6 +71,7 @@ int main( int argc, char* argv[] )
     myslam::LidarOdometry lo;
 
     int frame_num = 250;
+    int frame_id = 0;
 
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
@@ -83,8 +84,11 @@ int main( int argc, char* argv[] )
                 continue;
             }
 
-            // if((frame_num--) <= 0){
-            //     isStop = true;
+            if((frame_num--) == 0 || frame_id == 250){
+                isStop = true;
+            }
+            // if(frame_id%3 != 0){
+            //     frame_id++;
             //     continue;
             // }
 
@@ -163,9 +167,7 @@ int main( int argc, char* argv[] )
                 i++;
             }
 
-
-            // Save every frame into the map
-            // TODO: implement Map class
+            corrviewer.removeAllWidgets();
 
             // Create Widget: current point cloud
             cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
@@ -216,6 +218,7 @@ int main( int argc, char* argv[] )
 
             //// Correspondence visualization
             myslam::Frame::PCPtr refkpsptr = lo.getKeypoints();
+            // myslam::Frame::PCPtr refkpsptr = lo.getRefKeypoints();
             vector<cv::Vec3d> refkps;
             refkps.resize( int(refkpsptr->size()) );
             for(int i = 0; i < refkpsptr->size(); i++){
@@ -228,21 +231,51 @@ int main( int argc, char* argv[] )
             cv::viz::WCloud cloud3( cloudMat3, cv::viz::Color::red() );
             cloud3.setRenderingProperty(cv::viz::POINT_SIZE, 4);
             corrviewer.showWidget( "Cloud3", cloud3 );
-            // // Show Point Cloud
-            // myslam::Frame::PCPtr srckpsptr = lo.getSrcKeypoints();
-            // vector<cv::Vec3d> srckps;
-            // srckps.resize( int(srckpsptr->size()) );
-            // for(int i = 0; i < srckpsptr->size(); i++){
-            //     cv::Mat v;
-            //     cv::eigen2cv((*srckpsptr)[i], v);
-            //     srckps[i] = v;
-            // }
-            // // Create Widget: reference keypoints
-            // cv::Mat cloudMat4 = cv::Mat( static_cast<int>( srckps.size() ), 1, CV_64FC3, &srckps[0] );
-            // cv::viz::WCloud cloud4( cloudMat4, cv::viz::Color::yellow() );
-            // cloud4.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // corrviewer.showWidget( "Cloud4", cloud4 );
 
+            // Create Widget: current keypoints in corresponding viewer
+            vector<cv::Vec3d> buffer3(buffer2);
+            // vector<cv::Vec3d> buffer3 = buffer2;
+            cv::Mat cloudMat_ref = cv::Mat( static_cast<int>( buffer3.size() ), 1, CV_64FC3, &buffer3[0] );
+            cv::viz::WCloud cloud_ref( cloudMat_ref, cv::viz::Color::yellow() );
+            cloud_ref.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+
+            cv::Affine3d ref_T = cv::Affine3d::Identity();
+            ref_T.translation(cv::Vec3d(180000, 0, 0));
+            cloud_ref.applyTransform(ref_T);
+            corrviewer.showWidget( "Cloud_ref", cloud_ref );
+
+            // Create Widget: correspondences
+            vector<pair<Vector3f,Vector3f> > corrs = lo.getCorrespondences();
+            int linenum = 0;
+            // cout<<"line num:\t"<<corrs.size()<<endl;
+            for(auto& corr: corrs){
+                Vector3f pt1_eigen = R*corr.first+T;
+                cv::Point3d pt1(pt1_eigen[0]+180000, pt1_eigen[1], pt1_eigen[2]);
+                cv::Point3d pt2(corr.second[0], corr.second[1], corr.second[2]);
+                cv::viz::WLine corrline(pt1, pt2, cv::viz::Color::pink());
+                // corrline.setRenderingProperty(cv::viz::LINE_WIDTH, 4);
+                corrviewer.showWidget("Correspond"+to_string(linenum++), corrline);
+            } 
+
+            // // Create Widget: range
+            // cv::Point3d cent = Trajectory.back();
+            // cv::Point3d minpt(cent.x-80000, cent.y-80000, cent.z-80000);
+            // cv::Point3d maxpt(cent.x+80000, cent.y+80000, cent.z+80000);
+            // cv::viz::WCube range_cube(minpt, maxpt, false, cv::viz::Color::green());
+            // range_cube.setRenderingProperty(cv::viz::OPACITY, 0.3);
+            // corrviewer.showWidget( "Range_cube", range_cube );
+
+
+            cout<<"Frame:\t#"<<(frame_id++)<<endl;
+            SE3 T_diff = lo.getTransformationDiff();
+            Vector3f trans = T_diff.log().head<3>();
+            Vector3f rot = T_diff.log().tail<3>();
+            cout<<"trans diff:\t"<<trans[0]<<" "<<trans[1]<<" "<<trans[2]<<endl;
+            cout<<"rot diff:\t"<<rot[0]<<" "<<rot[1]<<" "<<rot[2]<<endl;
+
+            if(frame_id == 2680){
+                isStop = true;
+            }
 
         // isStop = true;
         }

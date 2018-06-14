@@ -28,6 +28,8 @@ namespace myslam{
 			Frame::PCPtr getKeypoints();
 			Frame::PCPtr getSrcKeypoints();
 			Frame::PCPtr getRefKeypoints();
+			SE3 getTransformationDiff(){return (src_->getPose()*ref_->getPose().inverse());};
+			vector<pair<Vector3f,Vector3f> > getCorrespondences(){return corrs;};
 			pcl::PointCloud<pcl::PointXYZ> eigen2pcl(Frame::PCPtr pcptr);
 		private:
 			Frame::Ptr ref_;	// Reference frame
@@ -40,6 +42,7 @@ namespace myslam{
 			STATUS status_;		    
 			vector<float> seg_ratios_;
 		    Map globalMap_;
+		    vector<pair<Vector3f,Vector3f> > corrs;
 	};
 }
 #endif

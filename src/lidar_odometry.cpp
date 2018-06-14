@@ -135,7 +135,7 @@ namespace myslam{
 
 		cout<<"Src size:\t"<<cb.cloud1_keypoints.size()<<endl;
 		cout<<"Ref size:\t"<<cb.cloud2_keypoints.size()<<endl;
-		cout<<"add size:\t"<<globalMap_.size()<<endl;
+		// cout<<"add size:\t"<<globalMap_.size()<<endl;
 
 		pcl::Correspondences corresp;
 
@@ -188,10 +188,11 @@ namespace myslam{
 	    pcl::Correspondences corr;
 	    Ransac_based_Rejection.setInputSource(cb.cloud1_keypoints.makeShared());
 	    Ransac_based_Rejection.setInputTarget(cb.cloud2_keypoints.makeShared());
-	    double sac_threshold = 1000;// default PCL value..can be changed and may slightly affect the number of correspondences
+	    double sac_threshold = 1500;// default PCL value..can be changed and may slightly affect the number of correspondences
 	    Ransac_based_Rejection.setInlierThreshold(sac_threshold);
 	    Ransac_based_Rejection.setInputCorrespondences(correspond);
 	    Ransac_based_Rejection.getCorrespondences(corr);
+	    
 
 	    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 	    cout<<"Estimation done"<<endl;
@@ -208,6 +209,15 @@ namespace myslam{
 	    	Keypoint::Ptr kp = Keypoint::createKeypoint(
         		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
         	globalMap_.addKeypoint(kp);
+	    }
+
+	    corrs.clear();
+	    corrs.reserve(corr.size());
+	    for(auto& co: corr){
+	    	Vector3f p1(cb.cloud1_keypoints[co.index_query].x, cb.cloud1_keypoints[co.index_query].y, cb.cloud1_keypoints[co.index_query].z);
+	    	Vector3f p2(cb.cloud2_keypoints[co.index_match].x, cb.cloud2_keypoints[co.index_match].y, cb.cloud2_keypoints[co.index_match].z);
+	    	// p1 = R*p1+T;
+	    	corrs.push_back(make_pair(p1, p2));
 	    }
 
 		cout<<"inlier size:\t"<<corr.size()<<endl;	    

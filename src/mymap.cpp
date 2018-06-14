@@ -3,7 +3,6 @@
 namespace myslam{
 	void Map::addKeypoint(Keypoint::Ptr keypoint){
 		// The keypoint block does not exist
-		BlockMap::hasher fn = keypoints_.hash_function();
 		unsigned long block_id = getBlockID(keypoint->getPosition());
 		if(keypoints_.find(block_id) == keypoints_.end()){
 			Block kp_block;
@@ -13,62 +12,17 @@ namespace myslam{
 		// The keypoint block already exist
 		else{
 			vector<Vector3f> del_points;
-			auto it = keypoints_[block_id].begin();
-			while(it != keypoints_[block_id].end()){
-			// for(auto& kp: keypoints_[block_id]){
-				if((keypoint->getPosition()-it->first).norm() < 800 &&
-					keypoint->getSegRatio() > it->second->getSegRatio()){
-					// keypoints_[keypoint->getPosition()].insert(make_pair(keypoint->getPosition(), keypoint));
-					// del_points.push_back(kp.first);
-					keypoints_[block_id][keypoint->getPosition()] = keypoint;
-					it = keypoints_[block_id].erase(it);
+			bool isCandidate = true;
+			for(auto& kp:keypoints_[block_id]){
+				if((keypoint->getPosition()-kp.first).norm() < 800 &&
+					keypoint->getSegRatio() < kp.second->getSegRatio()){
+					isCandidate = false;
 				}
-				else if((keypoint->getPosition()-it->first).norm() > 800){
-					// keypoints_[keypoint->getPosition()].insert(make_pair(keypoint->getPosition(), keypoint));
-					keypoints_[block_id][keypoint->getPosition()] = keypoint;
-					it++;
-				}
-				else{
-					it++;
-				}
-				
 			}
-			// for(auto& kp_erase: del_points){
-			// 	keypoints_[block_id].erase(kp_erase);
-			// }
+			if(isCandidate){
+				keypoints_[block_id][keypoint->getPosition()] = keypoint;
+			}
 		}
-
-
-		// The keypoint does not exist
-		// if(keypoints_.find(keypoint->getPosition()) == keypoints_.end()){
-		// 	unsigned long bk_id = keypoints_.bucket(keypoint->getPosition());
-		// 	if(keypoints_.bucket_size(bk_id) == 0){
-		// 		keypoints_.insert(make_pair(keypoint->getPosition(), keypoint));
-		// 	}
-		// 	else{
-		// 		vector<Vector3f> del_points;
-		// 		for(auto it = keypoints_.begin(bk_id); it != keypoints_.end(bk_id); it++){
-		// 			if((keypoint->getPosition()-it->second->getPosition()).norm() < 300 || 
-		// 				keypoint->getSegRatio() > it->second->getSegRatio()){
-		// 				// keypoints_.erase(it->first);
-		// 				del_points.push_back(it->first);
-		// 				keypoints_.insert(make_pair(keypoint->getPosition(), keypoint));
-		// 			}
-		// 			else if((keypoint->getPosition()-it->second->getPosition()).norm() > 300){
-		// 				keypoints_.insert(make_pair(keypoint->getPosition(), keypoint));
-		// 			}
-		// 		}
-		// 		for(auto kp: del_points){
-		// 			keypoints_.erase(kp);
-		// 		}
-		// 	}
-			
-		// 	// keypoints_.insert(make_pair(keypoint->getPosition(), keypoint));
-		// }
-		// // The keypoint already exist
-		// else{
-		// 	keypoints_[keypoint->getPosition()] = keypoint;
-		// }
 	}
 
 	void Map::getKeypoints(
@@ -81,15 +35,14 @@ namespace myslam{
 		descriptors.clear();
 
 		int count = 0;
-		BlockMap::hasher fn = keypoints_.hash_function();
 		unsigned long block_id;
 		// Search range
-		int x_min = int(trunc((pos[0]-range)/prec))*prec;
-		int x_max = int(trunc((pos[0]+range)/prec))*prec;
-		int y_min = int(trunc((pos[1]-range)/prec))*prec;
-		int y_max = int(trunc((pos[1]+range)/prec))*prec;
-		int z_min = int(trunc((pos[2]-range)/prec))*prec;
-		int z_max = int(trunc((pos[2]+range)/prec))*prec;
+		int x_min = int(round((pos[0]-range)/prec))*prec;
+		int x_max = int(round((pos[0]+range)/prec))*prec;
+		int y_min = int(round((pos[1]-range)/prec))*prec;
+		int y_max = int(round((pos[1]+range)/prec))*prec;
+		int z_min = int(round((pos[2]-range)/prec))*prec;
+		int z_max = int(round((pos[2]+range)/prec))*prec;
 		for(int x = x_min; x <= x_max; x += prec){
 			for(int y = y_min; y <= y_max; y += prec){
 				for(int z = z_min; z <= z_max; z += prec){
@@ -125,7 +78,7 @@ namespace myslam{
 				vec.push_back(kp.first);				
 			}
 		}
-		cout<<"All kps:\t"<<vec.size()<<endl;
+		// cout<<"All kps:\t"<<vec.size()<<endl;
 	}
 
 	int Map::size(){
@@ -139,13 +92,13 @@ namespace myslam{
 
 	unsigned long Map::getBlockID(Vector3f pos){
 		Vector3f grid_p(
-			int(trunc(pos[0]/prec))*prec, 
-			int(trunc(pos[1]/prec))*prec, 
-			int(trunc(pos[2]/prec))*prec);
+			int(round(pos[0]/prec))*prec, 
+			int(round(pos[1]/prec))*prec, 
+			int(round(pos[2]/prec))*prec);
 		// 64bits keyID = 1bit+21bits(x)+21bits(y)+21bits(z)
-		bitset<64> i = ((bitset<64>(grid_p[0])<<42) & bitset<64>(0x1FFFFF)<<42);
-		bitset<64> j = ((bitset<64>(grid_p[1])<<21) & bitset<64>(0x1FFFFF)<<21);
-		bitset<64> k = (bitset<64>(grid_p[2]) & bitset<64>(0x1FFFFF));
+		bitset<64> i = ((bitset<64>(int(grid_p[0]))<<42) & bitset<64>(0x1FFFFF)<<42);
+		bitset<64> j = ((bitset<64>(int(grid_p[1]))<<21) & bitset<64>(0x1FFFFF)<<21);
+		bitset<64> k = (bitset<64>(int(grid_p[2])) & bitset<64>(0x1FFFFF));
 		return ((i|j|k).to_ulong());
 	}
 

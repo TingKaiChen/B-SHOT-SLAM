@@ -21,7 +21,7 @@ typedef unordered_map<unsigned long, Grid> GridMap;
 typedef unordered_map<unsigned long, int> ColGroundVal;
 typedef map<double, double> RangeImgCol;
 typedef map<double, RangeImgCol> RangeImg;
-typedef map<double, bool> RemoveCol;
+typedef map<double, int> RemoveCol;
 typedef map<double, RemoveCol> RemoveMap;
 
 void KeyboardCallback(const cv::viz::KeyboardEvent&, void*);
@@ -104,6 +104,7 @@ int main( int argc, char* argv[] )
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;
             std::vector<cv::Vec3d> buffer_g;
+            std::vector<cv::Vec3d> buffer_car;
             for( const velodyne::Laser& laser : lasers ){
                 // Distance unit: mm
                 const double distance = static_cast<double>( laser.distance );
@@ -115,9 +116,9 @@ int main( int argc, char* argv[] )
                 double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
                 rimg[azimuth][vertical] = distance;
-                rimg[azimuth][-90*CV_PI/180.0] = 1200;
+                rimg[azimuth][-0.6] = 1200;
                 rmmap[azimuth][vertical] = false;
-                rmmap[azimuth][-90*CV_PI/180.0] = true;
+                rmmap[azimuth][-0.6] = true;
 
 
                 // Add a point into the point cloud
@@ -134,10 +135,14 @@ int main( int argc, char* argv[] )
                 bool lost_pt = false;
                 bool set_th_pt = false;
                 bool prev_is_ground = true;
-                double vert_prev = -90*CV_PI/180.0;
-                Vector3f p_prev(0, 0, -1200);
-                Vector3f p_th(0, 0, -1200);
-                double z_max = -1200;
+                double vert_prev = -0.6;
+                double x_0 = (-1200/tan(vert_prev))*cos(col.first);
+                double y_0 = (-1200/tan(vert_prev))*sin(col.first);
+                double z_0 = -1200;
+                Vector3f p_prev(x_0, y_0, z_0);
+                Vector3f p_th(x_0, y_0, z_0);
+                // Vector3f p_prev(0, 0, -1200);
+                // Vector3f p_th(0, 0, -1200);
 
                 for(auto& vert: col.second){
                     double x = vert.second*cos(vert.first)*sin(col.first);
@@ -152,29 +157,27 @@ int main( int argc, char* argv[] )
                         (grad > grad_th || vert.second == 0 || vert.second < p_prev.norm())){
                         set_th_pt = true;
                         p_th = p_prev;
-                        if(p_th[2] > z_max){
-                            z_max = p_th[2];
-                        }
                     }
 
                     if(prev_is_ground){    // Previous point is ground point
                         if(grad < grad_th && !lost_pt){
-                            rmmap[col.first][vert.first] = true;
+                            rmmap[col.first][vert.first] = 1;
                             prev_is_ground = true;
                         }
                         else{   // Previous point is a threshold point
-                            rmmap[col.first][vert.first] = false;
+                            rmmap[col.first][vert.first] = 0;
                             prev_is_ground = false;
                         }
                     }
+                    // Lower ground condition
                     else if(!prev_is_ground && p_curr[2] < -1000 && grad < grad_th){
-                        rmmap[col.first][vert.first] = true;
+                        rmmap[col.first][vert.first] = 1;
                         prev_is_ground = true;
                         set_th_pt = false;
                     }
 
                     if(vert.second == 0){   // Current point is a lost point
-                        rmmap[col.first][vert.first] = true;
+                        rmmap[col.first][vert.first] = 1;
                         lost_pt = true;
                         prev_is_ground = false;
                     }
@@ -183,17 +186,24 @@ int main( int argc, char* argv[] )
                     }
 
                     if(vert.second < p_prev.norm() && vert.second != 0){
-                        rmmap[col.first][vert.first] = false;
+                        rmmap[col.first][vert.first] = 0;
                         prev_is_ground = false;
                     }
 
                     // Set start point
                     if(set_th_pt && (p_curr[2]-p_th[2]) < height_th && p_curr[2] < p_prev[2]){
                         set_th_pt = false;
-                        rmmap[col.first][vert.first] = true;
+                        rmmap[col.first][vert.first] = 1;
                         prev_is_ground = true;
                     }
 
+                    // Remove self-car
+                    if(x <= 820 && x >= -820 && 
+                        y <= 1300 && y >= -1800 && 
+                        z <= 100 && z >= -2000){
+                        rmmap[col.first][vert.first] = 2;
+                        // continue;
+                    }
 
                     p_prev = p_curr;
                     vert_prev = vert.first;
@@ -204,17 +214,24 @@ int main( int argc, char* argv[] )
             for(auto& col: rimg){
                 Vector3f p_prev(0, 0, -1200);
                 for(auto& vert: col.second){
+                    if(vert.second == 0 || vert.first == -0.6)
+                        continue;
                     double x = vert.second*cos(vert.first)*sin(col.first);
                     double y = vert.second*cos(vert.first)*cos(col.first);
                     double z = vert.second*sin(vert.first);
                     Vector3f pt(x, y, z);
                     cv::Mat v;
                     cv::eigen2cv(pt, v);
-                    if(rmmap[col.first][vert.first]){
-                        buffer_g.push_back( v );
-                    }
-                    else{
-                        buffer.push_back( v );
+                    switch(rmmap[col.first][vert.first]){
+                        case 0: // Remaining points
+                            buffer.push_back( v );
+                            break;
+                        case 1: // Ground points
+                            buffer_g.push_back( v );
+                            break;
+                        case 2: // Self-Car points
+                            buffer_car.push_back(v);
+                            break;
                     }
                     // if(count == 695){
                     //     double grad = asin((pt[2]-p_prev[2])/(pt-p_prev).norm())*180/CV_PI;
@@ -222,6 +239,10 @@ int main( int argc, char* argv[] )
                     //     p_prev = pt;
                     // }
                 }
+                // if(count == 695){
+                //     break;
+                // }
+                // count++;
             }
 
 
@@ -245,6 +266,13 @@ int main( int argc, char* argv[] )
             // Show Point Cloud
             viewer.showWidget( "Cloud_g", cloud_g );
 
+            // Create Widget: car point cloud
+            cv::Mat cloudMat_car = cv::Mat( static_cast<int>( buffer_car.size() ), 1, CV_64FC3, &buffer_car[0] );
+            cv::viz::WCloud cloud_car( cloudMat_car, cv::viz::Color::green() );
+            cloud_car.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            // Show Point Cloud
+            viewer.showWidget( "Cloud_car", cloud_car );
+
             // // Create Widget: Zero plane
             // cv::Point3d ct(0, 0, -1200);
             // cv::Vec3d nVec = cv::Vec3d(0, 0, 1);
@@ -256,7 +284,8 @@ int main( int argc, char* argv[] )
 
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
-
+            // if(frame_id == 64)
+            //     isStop = true;
         // isStop = true;
         }
         viewer.spinOnce();

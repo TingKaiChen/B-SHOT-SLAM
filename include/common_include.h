@@ -37,6 +37,7 @@ using cv::Mat;
 #include <map>
 #include <bitset>
 #include <ctime>
+#include <cmath>
 
 using namespace std; 
 #endif

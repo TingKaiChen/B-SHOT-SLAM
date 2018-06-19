@@ -4,7 +4,6 @@ add_library( myslam
     lidar_odometry.cpp
     keypoint.cpp
     mymap.cpp
-    map.cpp
 )
 
 target_link_libraries( myslam

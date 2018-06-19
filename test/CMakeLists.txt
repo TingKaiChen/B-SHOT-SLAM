@@ -12,3 +12,6 @@ target_link_libraries( eigen_test myslam )
 
 add_executable( pointcloud_preprocessing pointcloud_preprocessing.cpp )
 target_link_libraries( pointcloud_preprocessing myslam )
+
+add_executable( submap_test submap_test.cpp )
+target_link_libraries( submap_test myslam )

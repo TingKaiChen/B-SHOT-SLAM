@@ -48,6 +48,8 @@ namespace myslam{
 				for(int z = z_min; z <= z_max; z += prec){
 					block_id = getBlockID(Vector3f(x, y, z));
 					// unsigned long bk_id = keypoints_.bucket(Vector3f(x, y, z));
+					if(keypoints_.find(block_id) == keypoints_.end())
+						continue;
 					int bucket_sz = keypoints_[block_id].size();
 					// if(bucket_sz != 0)
 						// cout<<"bk size:\t"<<bucket_sz<<endl;
@@ -101,5 +103,17 @@ namespace myslam{
 		bitset<64> k = (bitset<64>(int(grid_p[2])) & bitset<64>(0x1FFFFF));
 		return ((i|j|k).to_ulong());
 	}
+
+	void Map::getBlockKeypoints(vector<KPointCloud>& kpc){
+		for(auto& block: keypoints_){
+			KPointCloud temp;
+			temp.reserve(block.second.size());
+			for(auto& kp: block.second){
+				temp.push_back(kp.first);
+			}
+			kpc.push_back(temp);
+		}
+	}
+
 
 }

@@ -270,4 +270,12 @@ namespace myslam{
 		return pclpc;
 	}
 
+			typedef vector<Vector3f> PC;
+	vector<PC> LidarOdometry::getBlockKeypoints(){
+		vector<PC> kpblock;
+		globalMap_.getBlockKeypoints(kpblock);
+		return kpblock;
+	}
+
+
 }

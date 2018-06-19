@@ -19,6 +19,10 @@ typedef cv::viz::Viz3d VizViewer;
 typedef unordered_map<unsigned long, vector<Vector3f> > Grid;
 typedef unordered_map<unsigned long, Grid> GridMap;
 typedef unordered_map<unsigned long, int> ColGroundVal;
+typedef map<double, double> RangeImgCol;
+typedef map<double, RangeImgCol> RangeImg;
+typedef map<double, bool> RemoveCol;
+typedef map<double, RemoveCol> RemoveMap;
 
 void KeyboardCallback(const cv::viz::KeyboardEvent&, void*);
 
@@ -94,6 +98,9 @@ int main( int argc, char* argv[] )
             GridMap gridmap;
             ColGroundVal groundval;
 
+            RangeImg rimg;
+            RemoveMap rmmap;
+
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;
             std::vector<cv::Vec3d> buffer_g;
@@ -107,66 +114,116 @@ int main( int argc, char* argv[] )
                 double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
                 double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
-                unsigned long grid_id = getBlockID(Vector3f(x, y, z), false);
-                unsigned long gridmap_id = getBlockID(Vector3f(x, y, z), true);
-                if(gridmap.find(gridmap_id) == gridmap.end()){  // No (x, y) column
-                    // Add new column and grid
-                    vector<Vector3f> grid;
-                    grid.push_back(Vector3f(x, y, z));
-                    Grid gridcol;
-                    gridcol.insert(make_pair(grid_id, grid));
-                    gridmap.insert(make_pair(gridmap_id, gridcol));
-                    // Update the lowest elevation of the grid column
-                    int ground_z = int(round(z/prec))*prec;
-                    groundval.insert(make_pair(gridmap_id, ground_z));
-                }
-                else{   // Find (x, y) column
-                    if(gridmap[gridmap_id].find(grid_id) == gridmap[gridmap_id].end()){ // No (x, y, z) grid
-                    // Add new grid
-                        vector<Vector3f> grid;
-                        grid.push_back(Vector3f(x, y, z));
-                        gridmap[gridmap_id].insert(make_pair(grid_id, grid));
-                        // Update the lowest elevation of the grid column
-                        int ground_z = int(round(z/prec))*prec;
-                        if(groundval[gridmap_id] > ground_z){
-                            groundval[gridmap_id] = ground_z;
-                        }
-                    }
-                    else{   // Find (x, y, z) grid
-                        gridmap[gridmap_id][grid_id].push_back(Vector3f(x, y, z));
-                    }
-                }
+                rimg[azimuth][vertical] = distance;
+                rimg[azimuth][-90*CV_PI/180.0] = 1200;
+                rmmap[azimuth][vertical] = false;
+                rmmap[azimuth][-90*CV_PI/180.0] = true;
+
 
                 // Add a point into the point cloud
                 pc->push_back( Vector3f( x, y, z ) );
                 // Convert a point from Eigen type to OpenCV type
                 Vector3f vs = pc->back(); 
-                // cv::Mat v;
-                // cv::eigen2cv(Vector3f( x, y, z ), v);
-                // buffer.push_back( v );
             }
 
-            // for(auto& col: gridmap){
-            //     unsigned long col_buttom = (groundval[col.first] & 0x1FFFFF);
-            //     for(auto& grid: col.second){
-            //         unsigned long grid_z = (grid.first & 0x1FFFFF);
-            //         if(grid_z == col_buttom){
-            //             for(auto& pt: grid.second){
-            //                 cv::Mat v;
-            //                 cv::eigen2cv(pt, v);
-            //                 buffer_g.push_back( v );
-            //             }
-            //             // continue;
-            //         }
-            //         else{
-            //             for(auto& pt: grid.second){
-            //                 cv::Mat v;
-            //                 cv::eigen2cv(pt, v);
-            //                 buffer.push_back( v );
-            //             }
-            //         }
-            //     }
-            // }
+
+            double grad_th = 45;
+            double height_th = 250;
+
+            for(auto& col: rimg){
+                bool lost_pt = false;
+                bool set_th_pt = false;
+                bool prev_is_ground = true;
+                double vert_prev = -90*CV_PI/180.0;
+                Vector3f p_prev(0, 0, -1200);
+                Vector3f p_th(0, 0, -1200);
+                double z_max = -1200;
+
+                for(auto& vert: col.second){
+                    double x = vert.second*cos(vert.first)*sin(col.first);
+                    double y = vert.second*cos(vert.first)*cos(col.first);
+                    double z = vert.second*sin(vert.first);
+                    Vector3f p_curr(x, y, z);
+
+                    double grad = asin((p_curr[2]-p_prev[2])/(p_curr-p_prev).norm())*180/CV_PI;
+
+                    // Set threshold point
+                    if(prev_is_ground && 
+                        (grad > grad_th || vert.second == 0 || vert.second < p_prev.norm())){
+                        set_th_pt = true;
+                        p_th = p_prev;
+                        if(p_th[2] > z_max){
+                            z_max = p_th[2];
+                        }
+                    }
+
+                    if(prev_is_ground){    // Previous point is ground point
+                        if(grad < grad_th && !lost_pt){
+                            rmmap[col.first][vert.first] = true;
+                            prev_is_ground = true;
+                        }
+                        else{   // Previous point is a threshold point
+                            rmmap[col.first][vert.first] = false;
+                            prev_is_ground = false;
+                        }
+                    }
+                    else if(!prev_is_ground && p_curr[2] < -1000 && grad < grad_th){
+                        rmmap[col.first][vert.first] = true;
+                        prev_is_ground = true;
+                        set_th_pt = false;
+                    }
+
+                    if(vert.second == 0){   // Current point is a lost point
+                        rmmap[col.first][vert.first] = true;
+                        lost_pt = true;
+                        prev_is_ground = false;
+                    }
+                    else{
+                        lost_pt = false;
+                    }
+
+                    if(vert.second < p_prev.norm() && vert.second != 0){
+                        rmmap[col.first][vert.first] = false;
+                        prev_is_ground = false;
+                    }
+
+                    // Set start point
+                    if(set_th_pt && (p_curr[2]-p_th[2]) < height_th && p_curr[2] < p_prev[2]){
+                        set_th_pt = false;
+                        rmmap[col.first][vert.first] = true;
+                        prev_is_ground = true;
+                    }
+
+
+                    p_prev = p_curr;
+                    vert_prev = vert.first;
+                }
+            }
+
+            int count = 0;
+            for(auto& col: rimg){
+                Vector3f p_prev(0, 0, -1200);
+                for(auto& vert: col.second){
+                    double x = vert.second*cos(vert.first)*sin(col.first);
+                    double y = vert.second*cos(vert.first)*cos(col.first);
+                    double z = vert.second*sin(vert.first);
+                    Vector3f pt(x, y, z);
+                    cv::Mat v;
+                    cv::eigen2cv(pt, v);
+                    if(rmmap[col.first][vert.first]){
+                        buffer_g.push_back( v );
+                    }
+                    else{
+                        buffer.push_back( v );
+                    }
+                    // if(count == 695){
+                    //     double grad = asin((pt[2]-p_prev[2])/(pt-p_prev).norm())*180/CV_PI;
+                    //     cout<<grad<<endl;
+                    //     p_prev = pt;
+                    // }
+                }
+            }
+
 
             // // Create a frame
             // myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
@@ -174,21 +231,28 @@ int main( int argc, char* argv[] )
             // FrameSequence.push_back(fptr);
             // cout<<"size of pointcloud: "<<pc->size()<<endl;
 
-            // // Create Widget: current point cloud
-            // cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
-            // cv::viz::WCloud cloud( cloudMat, cv::viz::Color::red() );
-            // cloud.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // // Show Point Cloud
-            // viewer.showWidget( "Cloud", cloud );
+            // Create Widget: current point cloud
+            cv::Mat cloudMat = cv::Mat( static_cast<int>( buffer.size() ), 1, CV_64FC3, &buffer[0] );
+            cv::viz::WCloud cloud( cloudMat, cv::viz::Color::red() );
+            cloud.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            // Show Point Cloud
+            viewer.showWidget( "Cloud", cloud );
 
-            // // Create Widget: ground point cloud
-            // cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
-            // cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
-            // cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // // Show Point Cloud
-            // viewer.showWidget( "Cloud_g", cloud_g );
+            // Create Widget: ground point cloud
+            cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
+            cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
+            cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            // Show Point Cloud
+            viewer.showWidget( "Cloud_g", cloud_g );
 
-
+            // // Create Widget: Zero plane
+            // cv::Point3d ct(0, 0, -1200);
+            // cv::Vec3d nVec = cv::Vec3d(0, 0, 1);
+            // cv::Vec3d yVec = cv::Vec3d(0, 1, 0);
+            // cv::Size2d sz = cv::Size2d(70000, 70000);
+            // cv::viz::WPlane VPlane(ct, nVec, yVec, sz, cv::viz::Color::green());          
+            // VPlane.setRenderingProperty(cv::viz::OPACITY, 0.3);
+            // viewer.showWidget("Plane", VPlane);
 
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;

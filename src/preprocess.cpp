@@ -1,6 +1,10 @@
 #include "preprocess.h"
 
 namespace myslam{
+	Preprocessor::Preprocessor(){
+
+	}
+
 	Preprocessor::Preprocessor(vector<velodyne::Laser>& lasers, vector<double>& vertAngle, shared_ptr<vector<Vector3f>> pc){
 		lasers_ = lasers;
 		pc_ = pc;
@@ -8,10 +12,20 @@ namespace myslam{
 	    sort(vertAngle_.begin(), vertAngle_.end());
 	}
 
-	bool Preprocessor::readFrame(){
-		rimg.clear();
-		rmmap.clear();
+	void Preprocessor::setLasers(vector<velodyne::Laser>& lasers){
+		lasers_ = lasers;
+	}
 
+	void Preprocessor::setVerticalAngles(vector<double>& vertAngle){
+		vertAngle_ = vertAngle;  // Degree
+	    sort(vertAngle_.begin(), vertAngle_.end());
+	}
+
+	void Preprocessor::setPointCloud(shared_ptr<vector<Vector3f>> pc){
+		pc_ = pc;
+	}
+
+	bool Preprocessor::readFrame(){
         if( lasers_.empty() ){
         	return false;
         }
@@ -162,6 +176,9 @@ namespace myslam{
 	}
 
 	void Preprocessor::run(){
+		pc_->clear();
+		rimg.clear();
+		rmmap.clear();
 		while(!readFrame()){};
 		removeGround();
 		removeOccluded();

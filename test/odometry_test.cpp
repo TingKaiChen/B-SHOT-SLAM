@@ -3,6 +3,7 @@
 #include "VelodyneCapture.h"
 #include "frame.h"
 #include "lidar_odometry.h"
+#include "preprocess.h"
 
 #include <iostream>
 #include <vector>
@@ -70,6 +71,12 @@ int main( int argc, char* argv[] )
     vector<cv::Vec3d> Trajectory;
     myslam::LidarOdometry lo;
 
+    vector<double> vertAngle = capture.getVerticalAngle();  // Degree
+    sort(vertAngle.begin(), vertAngle.end());
+
+    myslam::Preprocessor preprocessor;
+    preprocessor.setVerticalAngles(vertAngle);
+
     int frame_num = 250;
     int frame_id = 0;
 
@@ -77,6 +84,7 @@ int main( int argc, char* argv[] )
         if(!isStop){
             // Create a pointcloud smart pointer
             myslam::Frame::PCPtr pc = make_shared<vector<Vector3f>>();
+            preprocessor.setPointCloud(pc);
             // Capture One Rotation Data
             std::vector<velodyne::Laser> lasers;
             capture >> lasers;
@@ -92,42 +100,46 @@ int main( int argc, char* argv[] )
             //     continue;
             // }
 
+            // Point cloud preprocessing
+            preprocessor.setLasers(lasers);
+            preprocessor.run();
+
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;
             // buffer.resize( lasers.size() );
             // pc->resize( lasers.size() );
 
-            for( const velodyne::Laser& laser : lasers ){
-                // Distance unit: mm
-                const double distance = static_cast<double>( laser.distance );
-                const double azimuth  = laser.azimuth  * CV_PI / 180.0;
-                const double vertical = laser.vertical * CV_PI / 180.0;
+            // for( const velodyne::Laser& laser : lasers ){
+            //     // Distance unit: mm
+            //     const double distance = static_cast<double>( laser.distance );
+            //     const double azimuth  = laser.azimuth  * CV_PI / 180.0;
+            //     const double vertical = laser.vertical * CV_PI / 180.0;
 
-                double x = static_cast<double>( ( distance * std::cos( vertical ) ) * std::sin( azimuth ) );
-                double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
-                double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
+            //     double x = static_cast<double>( ( distance * std::cos( vertical ) ) * std::sin( azimuth ) );
+            //     double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
+            //     double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
-                // Remove ground points
-                if(z<-500) continue;
-                // Remove origin
-                if( x == 0.0 && y == 0.0 && z == 0.0 ){
-                    x = std::numeric_limits<double>::quiet_NaN();
-                    y = std::numeric_limits<double>::quiet_NaN();
-                    z = std::numeric_limits<double>::quiet_NaN();
-                    continue;
-                }
-                // Remove self-car
-                if(x <= 820 && x >= -820 && y <= 1300 && y >= -1800 && z <= 100 && z >= -2000)
-                    continue;
+            //     // Remove ground points
+            //     if(z<-500) continue;
+            //     // Remove origin
+            //     if( x == 0.0 && y == 0.0 && z == 0.0 ){
+            //         x = std::numeric_limits<double>::quiet_NaN();
+            //         y = std::numeric_limits<double>::quiet_NaN();
+            //         z = std::numeric_limits<double>::quiet_NaN();
+            //         continue;
+            //     }
+            //     // Remove self-car
+            //     if(x <= 820 && x >= -820 && y <= 1300 && y >= -1800 && z <= 100 && z >= -2000)
+            //         continue;
 
-                // Add a point into the point cloud
-                pc->push_back( Vector3f( x, y, z ) );
-                // Convert a point from Eigen type to OpenCV type
-                Vector3f vs = pc->back(); 
-                cv::Mat v;
-                cv::eigen2cv(Vector3f( x, y, z ), v);
-                buffer.push_back( v );
-            }
+            //     // Add a point into the point cloud
+            //     pc->push_back( Vector3f( x, y, z ) );
+            //     // Convert a point from Eigen type to OpenCV type
+            //     Vector3f vs = pc->back(); 
+            //     cv::Mat v;
+            //     cv::eigen2cv(Vector3f( x, y, z ), v);
+            //     buffer.push_back( v );
+            // }
 
             // Create a frame
             myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
@@ -163,7 +175,8 @@ int main( int argc, char* argv[] )
                 *it = R*(*it)+T;
                 cv::Mat v;
                 cv::eigen2cv(*it, v);
-                buffer[i] = v;
+                buffer.push_back(v);
+                // buffer[i] = v;
                 i++;
             }
 

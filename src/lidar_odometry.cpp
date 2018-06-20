@@ -96,7 +96,7 @@ namespace myslam{
         for(int i=0; i < SegRatio.size(); i++){
         	test_->push_back(Vector3f(src_pcl_.points[SegRatio[i].first].x, src_pcl_.points[SegRatio[i].first].y, src_pcl_.points[SegRatio[i].first].z));       	
         }
-        src_->setKeypoints(make_shared<vector<Vector3f>>(test_->begin()+0.95*test_->size(), test_->end()));
+        src_->setKeypoints(make_shared<vector<Vector3f>>(test_->begin()+0.97*test_->size(), test_->end()));
         seg_ratios_.clear();
         seg_ratios_.reserve(0.01*test_->size());
         for(auto it = SegRatio.begin()+0.99*test_->size(); it != SegRatio.end(); it++){

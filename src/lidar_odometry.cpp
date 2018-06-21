@@ -185,7 +185,7 @@ namespace myslam{
 	    /// RANSAC BASED Correspondence Rejection
 	    pcl::CorrespondencesConstPtr correspond = boost::make_shared< pcl::Correspondences >(corresp);
 
-	    pcl::Correspondences corr;
+	    corr.clear();
 	    Ransac_based_Rejection.setInputSource(cb.cloud1_keypoints.makeShared());
 	    Ransac_based_Rejection.setInputTarget(cb.cloud2_keypoints.makeShared());
 	    double sac_threshold = 1500;// default PCL value..can be changed and may slightly affect the number of correspondences
@@ -193,11 +193,60 @@ namespace myslam{
 	    Ransac_based_Rejection.setInputCorrespondences(correspond);
 	    Ransac_based_Rejection.getCorrespondences(corr);
 	    
-
-	    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 	    cout<<"Estimation done"<<endl;
-	    // mat = mat*ref_->getPose().matrix();	// If the pattern is frame-to-frame
-        Matrix3f R = mat.block<3,3>(0, 0);
+
+	 //    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	 //    // mat = mat*ref_->getPose().matrix();	// If the pattern is frame-to-frame
+  //       Matrix3f R = mat.block<3,3>(0, 0);
+  //       Vector3f T = mat.topRightCorner<3,1>();
+	 //    for(int i = 0, idx = 0; i < cb.cloud1_bshot.size(); i++){
+	 //    	if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
+	 //    		idx++;
+	 //    		continue;
+	 //    	}
+	 //    	Vector3f kp_pos = src_->getKeypoints()->at(i);
+	 //    	kp_pos = R*kp_pos+T;
+	 //    	Keypoint::Ptr kp = Keypoint::createKeypoint(
+  //       		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
+  //       	globalMap_.addKeypoint(kp);
+	 //    }
+
+	 //    corrs.clear();
+	 //    corrs.reserve(corr.size());
+	 //    for(auto& co: corr){
+	 //    	Vector3f p1(cb.cloud1_keypoints[co.index_query].x, cb.cloud1_keypoints[co.index_query].y, cb.cloud1_keypoints[co.index_query].z);
+	 //    	Vector3f p2(cb.cloud2_keypoints[co.index_match].x, cb.cloud2_keypoints[co.index_match].y, cb.cloud2_keypoints[co.index_match].z);
+	 //    	// p1 = R*p1+T;
+	 //    	corrs.push_back(make_pair(p1, p2));
+	 //    }
+
+		// cout<<"inlier size:\t"<<corr.size()<<endl;	    
+
+	}
+
+	void LidarOdometry::poseEstimation(){
+	    Eigen::Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	    // cout << "Mat : \n" << mat << endl;
+	    // src_->setPose(SE3(mat*ref_->getPose().matrix()));	// If the pattern is frame-to-frame
+	    src_->setPose(SE3(mat));	// If the pattern is frame-to-localmap
+        Vector3f pos(src_->getPose().matrix().topRightCorner<3,1>());
+        cout<<"curr pos:\t"<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<endl;
+
+	}
+
+	void LidarOdometry::evaluateEstimation(){
+		Matrix4f T_j = Ransac_based_Rejection.getBestTransformation();
+		Matrix4f T_i = ref_->getPose().matrix();
+		Matrix4f T_ij = T_i.inverse()*T_j;
+		Vector3f eulerangle = T_ij.block<3,3>(0, 0).eulerAngles(2, 1, 0);	//Yaw, Roll, Pitch
+		cout<<"YRP:\t"<<(eulerangle[0]*180/M_PI)<<"\t"<<(eulerangle[1]*180/M_PI)<<"\t"<<(eulerangle[2]*180/M_PI)<<endl;
+		// TODO: check correctness
+		// Use heading vector and their angle
+	}
+
+	void LidarOdometry::updateMap(){
+		Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
+	    Matrix3f R = mat.block<3,3>(0, 0);
         Vector3f T = mat.topRightCorner<3,1>();
 	    for(int i = 0, idx = 0; i < cb.cloud1_bshot.size(); i++){
 	    	if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
@@ -211,7 +260,12 @@ namespace myslam{
         	globalMap_.addKeypoint(kp);
 	    }
 
-	    corrs.clear();
+	    cout<<"Map updated"<<endl;
+	    status_ = RUN;
+	}
+
+	void LidarOdometry::updateCorrespondence(){
+		corrs.clear();
 	    corrs.reserve(corr.size());
 	    for(auto& co: corr){
 	    	Vector3f p1(cb.cloud1_keypoints[co.index_query].x, cb.cloud1_keypoints[co.index_query].y, cb.cloud1_keypoints[co.index_query].z);
@@ -220,19 +274,7 @@ namespace myslam{
 	    	corrs.push_back(make_pair(p1, p2));
 	    }
 
-		cout<<"inlier size:\t"<<corr.size()<<endl;	    
-
-	}
-
-	void LidarOdometry::poseEstimation(){
-	    Eigen::Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
-	    // cout << "Mat : \n" << mat << endl;
-	    // src_->setPose(SE3(mat*ref_->getPose().matrix()));	// If the pattern is frame-to-frame
-	    src_->setPose(SE3(mat));	// If the pattern is frame-to-localmap
-        Vector3f pos(src_->getPose().matrix().topRightCorner<3,1>());
-        cout<<"curr pos:\t"<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<endl;
-
-	    status_ = RUN;
+		cout<<"inlier size:\t"<<corr.size()<<endl;	  
 	}
 
 	Frame::PCPtr LidarOdometry::getKeypoints(){

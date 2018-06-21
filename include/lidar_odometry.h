@@ -21,6 +21,9 @@ namespace myslam{
 			void computeDescriptors();
 			void featureMatching();
 			void poseEstimation();
+			void evaluateEstimation();
+			void updateMap();
+			void updateCorrespondence();
 			void passSrc2Ref();
 			bool isInitial(){return status_ == INITIAL;};
 			Frame::Ptr getRefFrame(){return ref_;};
@@ -44,6 +47,7 @@ namespace myslam{
 			STATUS status_;		    
 			vector<float> seg_ratios_;
 		    Map globalMap_;
+		    pcl::Correspondences corr;
 		    vector<pair<Vector3f,Vector3f> > corrs;
 	};
 }

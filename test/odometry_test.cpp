@@ -106,40 +106,6 @@ int main( int argc, char* argv[] )
 
             // Convert to 3-dimention Coordinates
             std::vector<cv::Vec3d> buffer;
-            // buffer.resize( lasers.size() );
-            // pc->resize( lasers.size() );
-
-            // for( const velodyne::Laser& laser : lasers ){
-            //     // Distance unit: mm
-            //     const double distance = static_cast<double>( laser.distance );
-            //     const double azimuth  = laser.azimuth  * CV_PI / 180.0;
-            //     const double vertical = laser.vertical * CV_PI / 180.0;
-
-            //     double x = static_cast<double>( ( distance * std::cos( vertical ) ) * std::sin( azimuth ) );
-            //     double y = static_cast<double>( ( distance * std::cos( vertical ) ) * std::cos( azimuth ) );
-            //     double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
-
-            //     // Remove ground points
-            //     if(z<-500) continue;
-            //     // Remove origin
-            //     if( x == 0.0 && y == 0.0 && z == 0.0 ){
-            //         x = std::numeric_limits<double>::quiet_NaN();
-            //         y = std::numeric_limits<double>::quiet_NaN();
-            //         z = std::numeric_limits<double>::quiet_NaN();
-            //         continue;
-            //     }
-            //     // Remove self-car
-            //     if(x <= 820 && x >= -820 && y <= 1300 && y >= -1800 && z <= 100 && z >= -2000)
-            //         continue;
-
-            //     // Add a point into the point cloud
-            //     pc->push_back( Vector3f( x, y, z ) );
-            //     // Convert a point from Eigen type to OpenCV type
-            //     Vector3f vs = pc->back(); 
-            //     cv::Mat v;
-            //     cv::eigen2cv(Vector3f( x, y, z ), v);
-            //     buffer.push_back( v );
-            // }
 
             // Create a frame
             myslam::Frame::Ptr fptr = myslam::Frame::createFrame();
@@ -153,6 +119,9 @@ int main( int argc, char* argv[] )
                 lo.computeDescriptors();
                 lo.featureMatching();
                 lo.poseEstimation();
+                lo.evaluateEstimation();
+                lo.updateMap();
+                lo.updateCorrespondence();
             }
             else{
                 lo.passSrc2Ref();
@@ -161,6 +130,9 @@ int main( int argc, char* argv[] )
                 lo.computeDescriptors();
                 lo.featureMatching();
                 lo.poseEstimation();
+                lo.evaluateEstimation();
+                lo.updateMap();
+                lo.updateCorrespondence();
             }
             cv::Mat v;
             Vector3f position(fptr->getPose().matrix().topRightCorner<3,1>());
@@ -171,6 +143,7 @@ int main( int argc, char* argv[] )
             Matrix3f R = fptr->getPose().matrix().block<3,3>(0, 0);
             Vector3f T = position;
             int i=0;
+            buffer.reserve(pc->size());
             for(vector<Vector3f>::iterator it = pc->begin(); it != pc->end(); it++){
                 *it = R*(*it)+T;
                 cv::Mat v;

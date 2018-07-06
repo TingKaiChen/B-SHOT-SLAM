@@ -508,6 +508,7 @@ namespace velodyne
                             Laser laser;
                             laser.azimuth = azimuth / 100.0;
                             laser.vertical = lut[laser_index % MAX_NUM_LASERS];
+                            // Distance increament is 2mm
                             laser.distance = firing_data.laserReturns[laser_index % MAX_NUM_LASERS].distance;
                             laser.intensity = firing_data.laserReturns[laser_index % MAX_NUM_LASERS].intensity;
                             laser.id = static_cast<unsigned char>( laser_index % MAX_NUM_LASERS );

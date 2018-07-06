@@ -112,6 +112,21 @@ namespace myslam{
 		cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
 	}
 
+	// void LidarOdometry::icp(){
+	// 	// Find possible keypoints in global map
+ //        Vector3f pos(ref_->getPose().matrix().topRightCorner<3,1>());
+ //        float range = 80000;
+	// 	globalMap_.getKeypoints(pos, range, cb.cloud2_keypoints, cb.cloud2_bshot);
+
+	//     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+	//     icp.setInputCloud(cb.cloud1_keypoints);
+	//     icp.setInputTarget(cb.cloud2_keypoints);
+	//     pcl::PointCloud<pcl::PointXYZ> final;
+	//     icp.align(final);
+	//     cout<<"ICP has converge: "<<icp.hasConverged()<<endl;
+	//     cout<<icp.getFinalTransformation()<<endl;
+	// }
+
 	void LidarOdometry::computeDescriptors(){
 	    cb.calculate_normals (3000);
 	    cb.calculate_SHOT (3000);
@@ -152,11 +167,6 @@ namespace myslam{
 	        }
 	        minVect(dist, (int)cb.cloud2_bshot.size(), &min_ix);
 	        left_nn[i] = min_ix;
-
-	        // pcl::Correspondence corr;
-         //    corr.index_query = i;
-         //    corr.index_match = left_nn[i];
-         //    corresp.push_back(corr);
 	    }
 	    for (int i=0; i<(int)cb.cloud2_bshot.size(); ++i)
 	    {
@@ -175,25 +185,58 @@ namespace myslam{
 	            corresp.push_back(corr);
 	        }
 	    }
+
+        // pcl::KdTreeFLANN<pcl::SHOT352> kdtree_corr;
+        // kdtree_corr.setInputCloud (cb.cloud2_shot.makeShared());
+        // for(size_t i=0; i<cb.cloud1_shot.size(); i++){
+        // 	vector<int> neigh_indices(1);
+        // 	vector<float> neigh_sqr_dists(1);
+        // 	if(!pcl::isFinite(cb.cloud1_shot[i])){
+        // 		continue;
+        // 	}
+        // 	cout<<"Fuck"<<endl;
+        // 	int found_neighs = kdtree_corr.nearestKSearch(cb.cloud1_shot[i], 1, neigh_indices, neigh_sqr_dists);
+        // 	cout<<"SHIT"<<endl;
+        // 	if(found_neighs == 1 && neigh_sqr_dists[0]<0.25f){
+        // 		pcl::Correspondence corr;
+        // 		corr.index_query = i;
+        // 		corr.index_match = neigh_indices[0];
+        // 		corresp.push_back(corr);
+        // 	}
+        // }
+
 		cout<<"Cor size:\t"<<corresp.size()<<endl;
 
 
-	    delete [] dist;
-	    delete [] left_nn;
-	    delete [] right_nn;
+	    // delete [] dist;
+	    // delete [] left_nn;
+	    // delete [] right_nn;
 
 	    /// RANSAC BASED Correspondence Rejection
 	    pcl::CorrespondencesConstPtr correspond = boost::make_shared< pcl::Correspondences >(corresp);
 
 	    corr.clear();
+	    Ransac_based_Rejection.setMaximumIterations(2000);
+	    cout<<"RANSAC iter: "<<Ransac_based_Rejection.getMaximumIterations()<<endl;;
 	    Ransac_based_Rejection.setInputSource(cb.cloud1_keypoints.makeShared());
 	    Ransac_based_Rejection.setInputTarget(cb.cloud2_keypoints.makeShared());
 	    double sac_threshold = 1500;// default PCL value..can be changed and may slightly affect the number of correspondences
 	    Ransac_based_Rejection.setInlierThreshold(sac_threshold);
 	    Ransac_based_Rejection.setInputCorrespondences(correspond);
 	    Ransac_based_Rejection.getCorrespondences(corr);
-	    
+
 	    cout<<"Estimation done"<<endl;
+
+	    // Matrix4f T_est = Ransac_based_Rejection.getBestTransformation();
+	    Matrix4f T_est = ref_->getPose().matrix();
+	    pcl::PointCloud<PointXYZ> icp_cloud;
+	    pcl::transformPointCloud(cb.cloud1_keypoints, icp_cloud, T_est);
+	    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+	    icp.setInputSource(icp_cloud.makeShared());
+	    icp.setInputTarget(cb.cloud2_keypoints.makeShared());
+	    pcl::PointCloud<PointXYZ> icp_out;
+	    icp.align(icp_out);
+	    T_best_ = icp.getFinalTransformation()*T_est;
 
 	 //    Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 	 //    // mat = mat*ref_->getPose().matrix();	// If the pattern is frame-to-frame
@@ -228,7 +271,8 @@ namespace myslam{
 	    Eigen::Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 	    // cout << "Mat : \n" << mat << endl;
 	    // src_->setPose(SE3(mat*ref_->getPose().matrix()));	// If the pattern is frame-to-frame
-	    src_->setPose(SE3(mat));	// If the pattern is frame-to-localmap
+	    // src_->setPose(SE3(mat));	// If the pattern is frame-to-localmap
+	    src_->setPose(SE3(T_best_));	// If the pattern is frame-to-localmap
         Vector3f pos(src_->getPose().matrix().topRightCorner<3,1>());
         cout<<"curr pos:\t"<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<endl;
 
@@ -238,10 +282,15 @@ namespace myslam{
 		Matrix4f T_j = Ransac_based_Rejection.getBestTransformation();
 		Matrix4f T_i = ref_->getPose().matrix();
 		Matrix4f T_ij = T_i.inverse()*T_j;
+		cout<<T_ij<<endl;
 		Vector3f eulerangle = T_ij.block<3,3>(0, 0).eulerAngles(2, 1, 0);	//Yaw, Roll, Pitch
 		cout<<"YRP:\t"<<(eulerangle[0]*180/M_PI)<<"\t"<<(eulerangle[1]*180/M_PI)<<"\t"<<(eulerangle[2]*180/M_PI)<<endl;
 		// TODO: check correctness
 		// Use heading vector and their angle
+		Vector3f heading(0, 1, 0);
+		float h_diff = acos(heading.transpose()*T_ij.block<3,3>(0, 0)*heading);
+		cout<<"H_diff (rad):\t"<<h_diff<<endl;
+		cout<<"H_diff (ang):\t"<<h_diff*180/M_PI<<endl;
 	}
 
 	void LidarOdometry::updateMap(){

@@ -38,7 +38,7 @@ int main( int argc, char* argv[] )
     }
 
     // Open VelodyneCapture that retrieve from PCAP
-    velodyne::HDL32ECapture capture( argv[1], 0 );
+    velodyne::HDL32ECapture capture( argv[1], 11 );
 
     if( !capture.isOpen() ){
         std::cerr << "Can't open VelodyneCapture." << std::endl;
@@ -52,6 +52,10 @@ int main( int argc, char* argv[] )
 
     // Register Callback
     viewer.registerKeyboardCallback(KeyboardCallback, &viewer);
+
+    viewer.setBackgroundColor(cv::viz::Color::gray());
+    viewer2.setBackgroundColor(cv::viz::Color::gray());
+    viewer3.setBackgroundColor(cv::viz::Color::gray());
 
     // Frame sequence
     vector<myslam::Frame::Ptr> FrameSequence;
@@ -89,9 +93,9 @@ int main( int argc, char* argv[] )
             std::vector<cv::Vec3d> buffer_preproc;
 
             for(auto& col: rimg){
-                Vector3f p_prev(0, 0, -1200);
                 for(auto& vert: col.second){
                     if(vert.second == 0 || vert.first == -0.6)
+                    // if(vert.second == 0 || vert.first == -1.25)
                         continue;
                     double x = vert.second*cos(vert.first)*sin(col.first);
                     double y = vert.second*cos(vert.first)*cos(col.first);

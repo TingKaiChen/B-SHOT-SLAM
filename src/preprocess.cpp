@@ -31,7 +31,7 @@ namespace myslam{
         }
         for( const velodyne::Laser& laser : lasers_ ){
             // Distance unit: mm?
-            const double distance = static_cast<double>( laser.distance );
+            const double distance = static_cast<double>( laser.distance )*2;
             const double azimuth  = laser.azimuth  * CV_PI / 180.0;
             const double vertical = laser.vertical * CV_PI / 180.0;
 
@@ -40,7 +40,7 @@ namespace myslam{
             double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
             rimg[azimuth][vertical] = distance;
-            rimg[azimuth][-0.6] = 1200;
+            rimg[azimuth][-0.6] = 4340;	// The smallest vertical radian = -30.67*pi/180 = -0.53
             rmmap[azimuth][vertical] = 0;
             rmmap[azimuth][-0.6] = 1;
         }
@@ -52,10 +52,10 @@ namespace myslam{
 	        bool lost_pt = false;
 	        bool set_th_pt = false;
 	        bool prev_is_ground = true;
-	        double vert_prev = -0.6;
-	        double x_0 = (-1200/tan(vert_prev))*cos(col.first);
-	        double y_0 = (-1200/tan(vert_prev))*sin(col.first);
-	        double z_0 = -1200;
+	        double vert_prev = -0.6;	
+	        double x_0 = (-2450/tan(vert_prev))*cos(col.first);
+	        double y_0 = (-2450/tan(vert_prev))*sin(col.first);
+	        double z_0 = -2450;
 	        Vector3f p_prev(x_0, y_0, z_0);
 	        Vector3f p_th(x_0, y_0, z_0);
 
@@ -85,7 +85,7 @@ namespace myslam{
 	                }
 	            }
 	            // Lower ground condition
-	            else if(!prev_is_ground && p_curr[2] < -1000 && grad < grad_th){
+	            else if(!prev_is_ground && p_curr[2] < lowpt_th && grad < grad_th){
 	                rmmap[col.first][vert.first] = 1;
 	                prev_is_ground = true;
 	                set_th_pt = false;

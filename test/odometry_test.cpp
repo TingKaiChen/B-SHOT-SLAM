@@ -77,7 +77,7 @@ int main( int argc, char* argv[] )
     myslam::Preprocessor preprocessor;
     preprocessor.setVerticalAngles(vertAngle);
 
-    int frame_num = 250;
+    int frame_num = 0;
     int frame_id = 0;
 
     while( capture.isRun() && !viewer.wasStopped() ){
@@ -92,7 +92,7 @@ int main( int argc, char* argv[] )
                 continue;
             }
 
-            if((frame_num--) == 0 || frame_id == 250){
+            if((frame_num--) == 0 || frame_id == 326){
                 isStop = true;
             }
             // if(frame_id%3 != 0){
@@ -161,6 +161,7 @@ int main( int argc, char* argv[] )
             // Show Point Cloud
             viewer.showWidget( "Cloud", cloud );
 
+            Keypoints.clear();
             myslam::Frame::PCPtr kpsptr = fptr->getKeypoints();
             for(vector<Vector3f>::iterator it = kpsptr->begin(); it != kpsptr->end(); it++){
                 Keypoints.push_back(R*(*it)+T);
@@ -230,6 +231,12 @@ int main( int argc, char* argv[] )
             cloud_ref.applyTransform(ref_T);
             corrviewer.showWidget( "Cloud_ref", cloud_ref );
 
+            vector<cv::Vec3d> buffer4(buffer);
+            cv::Mat cloudMat_ref_all = cv::Mat( static_cast<int>( buffer4.size() ), 1, CV_64FC3, &buffer4[0] );
+            cv::viz::WCloud cloud_ref_all( cloudMat_ref_all, cv::viz::Color::white() );
+            cloud_ref_all.applyTransform(ref_T);
+            corrviewer.showWidget( "Cloud_ref_all", cloud_ref_all );
+
             // Create Widget: correspondences
             vector<pair<Vector3f,Vector3f> > corrs = lo.getCorrespondences();
             int linenum = 0;
@@ -242,6 +249,11 @@ int main( int argc, char* argv[] )
                 // corrline.setRenderingProperty(cv::viz::LINE_WIDTH, 4);
                 corrviewer.showWidget("Correspond"+to_string(linenum++), corrline);
             } 
+
+            if(corrs.size()<15){
+                cout<<"Limited correspondence: "<<corrs.size()<<endl;
+                isStop = true;
+            }
 
             // // Create Widget: range
             // cv::Point3d cent = Trajectory.back();

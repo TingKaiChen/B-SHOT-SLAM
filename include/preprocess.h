@@ -31,8 +31,9 @@ namespace myslam{
 		private:
 			vector<double> vertAngle_;
             double grad_th = 45;	// Degree
-            double height_th = 250;
-            double dist_th = 1500;
+            double lowpt_th = -2000;	
+            double height_th = 500;
+            double dist_th = 3000;
             double angdiff_th = 1.0*CV_PI/180.0;	// Radian
 
             RangeImg rimg;

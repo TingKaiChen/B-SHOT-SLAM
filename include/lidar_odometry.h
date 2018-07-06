@@ -6,6 +6,7 @@
 #include "frame.h"
 // #include "map.h"
 #include "mymap.h"
+#include <pcl/registration/icp.h>
 
 namespace myslam{
 	class LidarOdometry{
@@ -18,6 +19,7 @@ namespace myslam{
 			void setRefFrame(Frame::Ptr ref);
 			void setSrcFrame(Frame::Ptr src);
 			void extractKeypoints();
+			// void icp();
 			void computeDescriptors();
 			void featureMatching();
 			void poseEstimation();
@@ -49,6 +51,7 @@ namespace myslam{
 		    Map globalMap_;
 		    pcl::Correspondences corr;
 		    vector<pair<Vector3f,Vector3f> > corrs;
+		    Matrix4f T_best_;
 	};
 }
 #endif

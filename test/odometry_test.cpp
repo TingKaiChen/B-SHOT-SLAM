@@ -33,6 +33,8 @@ int main( int argc, char* argv[] )
 
     // Open VelodyneCapture that retrieve from PCAP
     velodyne::HDL32ECapture capture( argv[1], 11 );
+    // velodyne::HDL32ECapture capture( argv[1], 1850 );// low computation time
+    // velodyne::HDL32ECapture capture( argv[1], 2000 );   // ICP deviation
 
     if( !capture.isOpen() ){
         std::cerr << "Can't open VelodyneCapture." << std::endl;
@@ -92,9 +94,9 @@ int main( int argc, char* argv[] )
                 continue;
             }
 
-            if((frame_num--) == 0 || frame_id == 326){
-                isStop = true;
-            }
+            // if((frame_num--) == 0 || frame_id == 326){
+            //     isStop = true;
+            // }
             // if(frame_id%3 != 0){
             //     frame_id++;
             //     continue;
@@ -118,8 +120,8 @@ int main( int argc, char* argv[] )
                 lo.extractKeypoints();
                 lo.computeDescriptors();
                 lo.featureMatching();
-                lo.poseEstimation();
                 lo.evaluateEstimation();
+                lo.poseEstimation();
                 lo.updateMap();
                 lo.updateCorrespondence();
             }
@@ -129,18 +131,20 @@ int main( int argc, char* argv[] )
                 lo.extractKeypoints();
                 lo.computeDescriptors();
                 lo.featureMatching();
-                lo.poseEstimation();
                 lo.evaluateEstimation();
+                lo.poseEstimation();
                 lo.updateMap();
                 lo.updateCorrespondence();
             }
             cv::Mat v;
-            Vector3f position(fptr->getPose().matrix().topRightCorner<3,1>());
+            // Vector3f position(fptr->getPose().matrix().topRightCorner<3,1>());
+            Vector3f position(fptr->getPose().topRightCorner<3,1>());
             cv::eigen2cv(position, v);
             Trajectory.push_back(v);
 
             // Point cloud transformation
-            Matrix3f R = fptr->getPose().matrix().block<3,3>(0, 0);
+            // Matrix3f R = fptr->getPose().matrix().block<3,3>(0, 0);
+            Matrix3f R = fptr->getPose().block<3,3>(0, 0);
             Vector3f T = position;
             int i=0;
             buffer.reserve(pc->size());
@@ -252,7 +256,7 @@ int main( int argc, char* argv[] )
 
             if(corrs.size()<15){
                 cout<<"Limited correspondence: "<<corrs.size()<<endl;
-                isStop = true;
+                // isStop = true;
             }
 
             // // Create Widget: range
@@ -265,11 +269,11 @@ int main( int argc, char* argv[] )
 
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
-            SE3 T_diff = lo.getTransformationDiff();
-            Vector3f trans = T_diff.log().head<3>();
-            Vector3f rot = T_diff.log().tail<3>();
-            cout<<"trans diff:\t"<<trans[0]<<" "<<trans[1]<<" "<<trans[2]<<endl;
-            cout<<"rot diff:\t"<<rot[0]<<" "<<rot[1]<<" "<<rot[2]<<endl;
+            // SE3 T_diff = lo.getTransformationDiff();
+            // Vector3f trans = T_diff.log().head<3>();
+            // Vector3f rot = T_diff.log().tail<3>();
+            // cout<<"trans diff:\t"<<trans[0]<<" "<<trans[1]<<" "<<trans[2]<<endl;
+            // cout<<"rot diff:\t"<<rot[0]<<" "<<rot[1]<<" "<<rot[2]<<endl;
 
             if(frame_id == 2680){
                 isStop = true;

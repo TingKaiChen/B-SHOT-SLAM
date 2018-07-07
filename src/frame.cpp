@@ -9,7 +9,9 @@ namespace myslam
     }
 
     Frame::Frame 
-    ( long id, double time_stamp, SE3 T_c_w, PCPtr pc, PCPtr kps, DCPPtr dcpts, bool isKeyframe): 
+    // ( long id, double time_stamp, SE3 T_c_w, PCPtr pc, PCPtr kps, DCPPtr dcpts, bool isKeyframe): 
+    ( long id, double time_stamp, Matrix4f T_c_w, PCPtr pc, PCPtr kps, DCPPtr dcpts, bool isKeyframe): 
+    // id_(id), timestamp_(time_stamp), T_c_w_(T_c_w), pointcloud_(pc), keypoints_(kps), 
     id_(id), timestamp_(time_stamp), T_c_w_(T_c_w), pointcloud_(pc), keypoints_(kps), 
     descriptors_(dcpts), is_key_frame_(isKeyframe){
 
@@ -30,7 +32,8 @@ namespace myslam
         timestamp_ = timestamp;
     }
 
-    void Frame::setPose ( const SE3& T_c_w )
+    // void Frame::setPose ( const SE3& T_c_w )
+    void Frame::setPose ( const Matrix4f& T_c_w )
     {
         T_c_w_ = T_c_w;
     }

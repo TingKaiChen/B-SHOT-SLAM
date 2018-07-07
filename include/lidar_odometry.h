@@ -35,9 +35,11 @@ namespace myslam{
 			Frame::PCPtr getRefKeypoints();
 			typedef vector<Vector3f> PC;
 			vector<PC> getBlockKeypoints();
-			SE3 getTransformationDiff(){return (src_->getPose()*ref_->getPose().inverse());};
+			// SE3 getTransformationDiff(){return (src_->getPose()*ref_->getPose().inverse());};
+			Matrix4f getTransformationDiff(){return (src_->getPose()*ref_->getPose().inverse());};
 			vector<pair<Vector3f,Vector3f> > getCorrespondences(){return corrs;};
 			pcl::PointCloud<pcl::PointXYZ> eigen2pcl(Frame::PCPtr pcptr);
+			vector<bshot_descriptor> eigen2dc(Frame::DCPPtr pcptr);
 		private:
 			Frame::Ptr ref_;	// Reference frame
 			Frame::Ptr src_;	// Source frame
@@ -52,6 +54,7 @@ namespace myslam{
 		    pcl::Correspondences corr;
 		    vector<pair<Vector3f,Vector3f> > corrs;
 		    Matrix4f T_best_;
+		    bool shouldUpdateMap;
 	};
 }
 #endif

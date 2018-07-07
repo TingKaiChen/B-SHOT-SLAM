@@ -12,10 +12,11 @@ namespace myslam
     public:
         typedef std::shared_ptr<Frame> Ptr;
         typedef std::shared_ptr<vector<Vector3f>> PCPtr;
-        typedef std::shared_ptr<vector<std::bitset<352>>*> DCPPtr;
+        typedef std::shared_ptr<vector<std::bitset<352>>> DCPPtr;
         unsigned long                  id_;         // id of this frame
         long long                      timestamp_;  // when it is recorded
-        SE3                            T_c_w_;      // transform from world to camera
+        // SE3                            T_c_w_;      // transform from world to camera
+        Matrix4f                       T_c_w_;      // transform from world to camera
         PCPtr                          pointcloud_; // The point cloud of the frame
         PCPtr                          keypoints_;  // Keypoints of the frame 
         DCPPtr                         descriptors_;// Keypoints of the frame 
@@ -23,20 +24,23 @@ namespace myslam
         
     public: // data members 
         Frame();
-        Frame( long id, double time_stamp=0, SE3 T_c_w=SE3(), 
+        // Frame( long id, double time_stamp=0, SE3 T_c_w=SE3(), 
+        Frame( long id, double time_stamp=0, Matrix4f T_c_w=Matrix4f::Identity(), 
             PCPtr pc=nullptr, PCPtr kps=nullptr, DCPPtr dcpts=nullptr, bool isKeyframe=false );
         ~Frame();
         
         static Frame::Ptr createFrame(); 
         
         void setTimestamp( const long long timestamp );
-        void setPose( const SE3& T_c_w );
+        // void setPose( const SE3& T_c_w );
+        void setPose( const Matrix4f& T_c_w );
         void setPointCloud(PCPtr pc);
         void setKeypoints(PCPtr kps);
         void setDescriptors(DCPPtr dcpts);
         unsigned long   getID(){ return id_;};
         long long       getTimestamp(){ return timestamp_;};
-        SE3             getPose(){ return T_c_w_;};
+        // SE3             getPose(){ return T_c_w_;};
+        Matrix4f        getPose(){ return T_c_w_;};
         PCPtr           getPointCloud(){ return pointcloud_;};
         PCPtr           getKeypoints(){ return keypoints_;};
         DCPPtr          getDescriptors(){ return descriptors_;};

@@ -40,7 +40,6 @@ public :
 
     std::vector<bshot_descriptor> cloud1_bshot, cloud2_bshot;
 
-
     void calculate_normals ( float radius )
     {
         // Estimate the normals.
@@ -48,14 +47,49 @@ public :
         // normalEstimation.setKSearch(radius);
         normalEstimation.setRadiusSearch(radius);
         normalEstimation.setNumberOfThreads(12);
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
-        normalEstimation.setSearchMethod(kdtree);
+        // pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>);
+        // normalEstimation.setSearchMethod(kdtree);
+        pcl::search::KdTree<pcl::PointXYZ> kdtree;
+        kdtree.setInputCloud(cloud1.makeShared());
 
-        normalEstimation.setInputCloud(cloud1.makeShared());
-        normalEstimation.compute(cloud1_normals);
+        std::vector<int> nn_indices;
+        std::vector<float> nn_dists;
+       
+        cloud1_normals.is_dense = true;
+        cloud1_normals.points.resize(cloud1.size());
 
-        normalEstimation.setInputCloud(cloud2.makeShared());
-        normalEstimation.compute(cloud2_normals);
+        #ifdef _OPENMP
+        #pragma omp parallel for private (nn_indices, nn_dists) num_threads(12)
+        #endif
+        // Iterating over the entire index vector
+        for (int idx = 0; idx < static_cast<int> (cloud1_keypoints.size ()); ++idx)
+        {
+            if (kdtree.radiusSearch(cloud1_keypoints[idx], radius, nn_indices, nn_dists, 300) == 0)
+            {
+                cloud1_normals.points[idx].normal[0] = cloud1_normals.points[idx].normal[1] = cloud1_normals.points[idx].normal[2] = cloud1_normals.points[idx].curvature = std::numeric_limits<float>::quiet_NaN ();
+     
+                cloud1_normals.is_dense = false;
+                continue;
+            }
+     
+            Eigen::Vector4f n;
+            pcl::computePointNormal<PointXYZ> (cloud1, nn_indices, n,
+                                               cloud1_normals.points[idx].curvature);
+            cloud1_normals.points[idx].normal_x = n[0];
+            cloud1_normals.points[idx].normal_y = n[1];
+            cloud1_normals.points[idx].normal_z = n[2];
+       
+            pcl::flipNormalTowardsViewpoint (cloud1_keypoints[idx], 0, 0, 0,
+                                             cloud1_normals.points[idx].normal[0], 
+                                             cloud1_normals.points[idx].normal[1], 
+                                             cloud1_normals.points[idx].normal[2]);
+        }
+
+        // normalEstimation.setInputCloud(cloud1.makeShared());
+        // normalEstimation.compute(cloud1_normals);
+
+        // normalEstimation.setInputCloud(cloud2.makeShared());
+        // normalEstimation.compute(cloud2_normals);
     }
 
 
@@ -68,8 +102,8 @@ public :
         voxel_grid.setInputCloud(cloud1.makeShared());
         voxel_grid.filter(cloud1_keypoints);
 
-        voxel_grid.setInputCloud(cloud2.makeShared());
-        voxel_grid.filter(cloud2_keypoints);
+        // voxel_grid.setInputCloud(cloud2.makeShared());
+        // voxel_grid.filter(cloud2_keypoints);
 
 
     }
@@ -92,10 +126,10 @@ public :
         shot.setInputNormals(cloud1_normals.makeShared());
         shot.compute(cloud1_shot);
 
-        shot.setInputCloud(cloud2_keypoints.makeShared());
-        shot.setSearchSurface(cloud2.makeShared());
-        shot.setInputNormals(cloud2_normals.makeShared());
-        shot.compute(cloud2_shot);
+        // shot.setInputCloud(cloud2_keypoints.makeShared());
+        // shot.setSearchSurface(cloud2.makeShared());
+        // shot.setInputNormals(cloud2_normals.makeShared());
+        // shot.compute(cloud2_shot);
 
     }
 
@@ -103,7 +137,7 @@ public :
     void compute_bshot()
     {
         compute_bshot_from_SHOT( cloud1_shot, cloud1_bshot);
-        compute_bshot_from_SHOT( cloud2_shot, cloud2_bshot);
+        // compute_bshot_from_SHOT( cloud2_shot, cloud2_bshot);
     }
 
     void compute_bshot_from_SHOT(pcl::PointCloud<pcl::SHOT352>& shot_descriptors_here, std::vector<bshot_descriptor>& bshot_descriptors)

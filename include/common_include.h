@@ -11,6 +11,7 @@ using Eigen::Vector3f;
 using Eigen::Matrix3d;
 using Eigen::Matrix3f;
 using Eigen::Matrix4f;
+using Eigen::MatrixXf;
 
 // for Sophus
 #include <sophus/se3.hpp>
@@ -38,6 +39,8 @@ using cv::Mat;
 #include <bitset>
 #include <ctime>
 #include <cmath>
+
+#include "tic_toc.h"
 
 using namespace std; 
 #endif

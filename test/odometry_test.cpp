@@ -275,7 +275,7 @@ int main( int argc, char* argv[] )
             // cout<<"trans diff:\t"<<trans[0]<<" "<<trans[1]<<" "<<trans[2]<<endl;
             // cout<<"rot diff:\t"<<rot[0]<<" "<<rot[1]<<" "<<rot[2]<<endl;
 
-            if(frame_id == 2680){
+            if(frame_id == 2681){
                 isStop = true;
             }
 

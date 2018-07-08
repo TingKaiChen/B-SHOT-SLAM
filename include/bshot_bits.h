@@ -64,7 +64,8 @@ public :
         // Iterating over the entire index vector
         for (int idx = 0; idx < static_cast<int> (cloud1_keypoints.size ()); ++idx)
         {
-            if (kdtree.radiusSearch(cloud1_keypoints[idx], radius, nn_indices, nn_dists, 300) == 0)
+            if (!pcl::isFinite(cloud1_keypoints[idx]) ||
+                kdtree.radiusSearch(cloud1_keypoints[idx], radius, nn_indices, nn_dists, 300) == 0)
             {
                 cloud1_normals.points[idx].normal[0] = cloud1_normals.points[idx].normal[1] = cloud1_normals.points[idx].normal[2] = cloud1_normals.points[idx].curvature = std::numeric_limits<float>::quiet_NaN ();
      

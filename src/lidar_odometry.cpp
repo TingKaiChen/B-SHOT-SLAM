@@ -49,7 +49,6 @@ namespace myslam{
     typedef pair<int, float> IdxRatioPair;
     bool comparator(const IdxRatioPair& l, const IdxRatioPair& r){return l.second < r.second;}
 	void LidarOdometry::extractKeypoints(){
-		TicToc tictoc;
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
         kdtree.setInputCloud (src_pcl_.makeShared());
         pcl::PointXYZ searchPoint; 
@@ -115,15 +114,11 @@ namespace myslam{
         	cout<<"\rprocess: "<<float(i)/src_pcl_.points.size()*100;
         }
         cout<<endl;
-        cout<<"AVG neigh number:\t"<<neigh_num/neigh_cnt<<endl;
-        cout<<"SR computation:\t"<<tictoc.toc()<<endl;
-        tictoc.tic();
+        // cout<<"AVG neigh number:\t"<<neigh_num/neigh_cnt<<endl;
         cout<<"Sorting...";
         sort(SegRatio.begin(), SegRatio.end(), comparator);
         cout<<"done"<<endl;
-        cout<<"Sorting time:\t"<<tictoc.toc()<<endl;
 
-        tictoc.tic();
         test_ = make_shared<vector<Vector3f>>();
         for(int i=0; i < SegRatio.size(); i++){
         	test_->push_back(Vector3f(src_pcl_.points[SegRatio[i].first].x, src_pcl_.points[SegRatio[i].first].y, src_pcl_.points[SegRatio[i].first].z));       	
@@ -145,18 +140,15 @@ namespace myslam{
 	        	seg_ratios_.push_back(it->second);
 	        }
 	    }
-        cout<<"Select SR time:\t"<<tictoc.toc()<<endl;
 
         if(isInitial()){
         	passSrc2Ref();
 	        ref_->setKeypoints(src_->getKeypoints());
         }
-        tictoc.tic();
 		cb.cloud1 = src_pcl_;
         cb.cloud2 = ref_pcl_;
 		cb.cloud1_keypoints = eigen2pcl(src_->getKeypoints());
 		cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
-        cout<<"Convert kp time:\t"<<tictoc.toc()<<endl;
 	}
 
 	// void LidarOdometry::icp(){
@@ -175,15 +167,9 @@ namespace myslam{
 	// }
 
 	void LidarOdometry::computeDescriptors(){
-		TicToc tictoc;
 	    cb.calculate_normals (3000);
-        cout<<"Normal calculation time:\t"<<tictoc.toc()<<endl;
-        tictoc.tic();
 	    cb.calculate_SHOT (3000);
-        cout<<"SHOT description time:\t"<<tictoc.toc()<<endl;
-        tictoc.tic();
 	    cb.compute_bshot();
-        cout<<"B-SHOT description time:\t"<<tictoc.toc()<<endl;
 
         std::shared_ptr<vector<std::bitset<352>>> descriptor(new vector<std::bitset<352>>);
         descriptor->reserve(cb.cloud1_bshot.size());
@@ -194,7 +180,6 @@ namespace myslam{
 	}
 
 	void LidarOdometry::featureMatching(){
-		TicToc tictoc;
 		if(isInitial()){
 			// Reference frame initialization
 			passSrc2Ref();
@@ -206,24 +191,18 @@ namespace myslam{
 		else{
 			// Find possible keypoints in global map
             Vector3f pos(ref_->getPose().topRightCorner<3,1>());
-            float range = 80000;
+            float range = 100000;	// Check
 			globalMap_.getKeypoints(pos, range, cb.cloud2_keypoints, cb.cloud2_bshot);
 
-			pcl::PointCloud<pcl::PointXYZ> kp_temp;
-			pcl::transformPointCloud(eigen2pcl(ref_->getKeypoints()), kp_temp, ref_->getPose());
-			cb.cloud2_keypoints += kp_temp;
-			vector<bshot_descriptor> bshot_temp = eigen2dc(ref_->getDescriptors());
-			cb.cloud2_bshot.reserve(cb.cloud2_bshot.size()+bshot_temp.size());
-			cb.cloud2_bshot.insert(cb.cloud2_bshot.end(), bshot_temp.begin(), bshot_temp.end());
-			// Check if ref_keypoint is transformed
+			// pcl::PointCloud<pcl::PointXYZ> kp_temp;
+			// pcl::transformPointCloud(eigen2pcl(ref_->getKeypoints()), kp_temp, ref_->getPose());
+			// cb.cloud2_keypoints += kp_temp;
+			// vector<bshot_descriptor> bshot_temp = eigen2dc(ref_->getDescriptors());
+			// cb.cloud2_bshot.reserve(cb.cloud2_bshot.size()+bshot_temp.size());
+			// cb.cloud2_bshot.insert(cb.cloud2_bshot.end(), bshot_temp.begin(), bshot_temp.end());
+			// // Check if ref_keypoint is transformed
 		}
-        cout<<"Retrieve ref. kp time:\t"<<tictoc.toc()<<endl;
 
-		cout<<"Src size:\t"<<cb.cloud1_keypoints.size()<<endl;
-		cout<<"Ref size:\t"<<cb.cloud2_keypoints.size()<<endl;
-		// cout<<"add size:\t"<<globalMap_.size()<<endl;
-
-		tictoc.tic();
 		pcl::Correspondences corresp;
 
 	    int *dist = new int[std::max(cb.cloud1_bshot.size(), cb.cloud2_bshot.size())];
@@ -280,16 +259,15 @@ namespace myslam{
 		cout<<"Cor size:\t"<<corresp.size()<<endl;
 
 
-	    // delete [] dist;
-	    // delete [] left_nn;
-	    // delete [] right_nn;
+	    delete [] dist;
+	    delete [] left_nn;
+	    delete [] right_nn;
 
 	    /// RANSAC BASED Correspondence Rejection
 	    pcl::CorrespondencesConstPtr correspond = boost::make_shared< pcl::Correspondences >(corresp);
 
 	    corr.clear();
 	    Ransac_based_Rejection.setMaximumIterations(2000);
-	    cout<<"RANSAC iter: "<<Ransac_based_Rejection.getMaximumIterations()<<endl;;
 	    Ransac_based_Rejection.setInputSource(cb.cloud1_keypoints.makeShared());
 	    Ransac_based_Rejection.setInputTarget(cb.cloud2_keypoints.makeShared());
 	    double sac_threshold = 1500;// default PCL value..can be changed and may slightly affect the number of correspondences
@@ -298,7 +276,6 @@ namespace myslam{
 	    Ransac_based_Rejection.getCorrespondences(corr);
 
 	    cout<<"Estimation done"<<endl;
-        cout<<"Matching & RANSAC time:\t"<<tictoc.toc()<<endl;
 
 	    // T_best_ = Ransac_based_Rejection.getBestTransformation();
 
@@ -372,7 +349,6 @@ namespace myslam{
 		    T_est = Ransac_based_Rejection.getBestTransformation();
 		    shouldUpdateMap = true;
 		}
-		TicToc tictoc;
 		pcl::PointCloud<PointXYZ> icp_cloud;
 	    pcl::transformPointCloud(cb.cloud1_keypoints, icp_cloud, T_est);
 	    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -381,7 +357,6 @@ namespace myslam{
 	    pcl::PointCloud<PointXYZ> icp_out;
 	    icp.align(icp_out);
 	    T_best_ = icp.getFinalTransformation()*T_est;
-        cout<<"ICP time:\t"<<tictoc.toc()<<endl;
 
 	}
 
@@ -399,35 +374,33 @@ namespace myslam{
 	}
 
 	void LidarOdometry::updateMap(){
-		TicToc tictoc;
 		// if(shouldUpdateMap){
 			// Matrix4f mat = Ransac_based_Rejection.getBestTransformation();
 			Matrix4f mat = T_best_;
 		    Matrix3f R = mat.block<3,3>(0, 0);
 	        Vector3f T = mat.topRightCorner<3,1>();
 		    for(int i = 0, idx = 0; i < cb.cloud1_bshot.size(); i++){
-		    	// if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
-		    	// 	idx++;
-		    	// 	continue;
-		    	// }
-		    	// Vector3f kp_pos = src_->getKeypoints()->at(i);
-		    	// kp_pos = R*kp_pos+T;
-		    	// Keypoint::Ptr kp = Keypoint::createKeypoint(
-	      //   		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
-	      //   	globalMap_.addKeypoint(kp);
-
-	        	if(i == corr[idx].index_query || isInitial()){	// Skip the inliers
-	        		Vector3f kp_pos = src_->getKeypoints()->at(i);
-			    	kp_pos = R*kp_pos+T;
-			    	Keypoint::Ptr kp = Keypoint::createKeypoint(
-		        		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
-		        	globalMap_.addKeypoint(kp);
+		    	if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
 		    		idx++;
+		    		continue;
 		    	}
+		    	Vector3f kp_pos = src_->getKeypoints()->at(i);
+		    	kp_pos = R*kp_pos+T;
+		    	Keypoint::Ptr kp = Keypoint::createKeypoint(
+	        		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
+	        	globalMap_.addKeypoint(kp);
+
+	      //   	if(i == corr[idx].index_query || isInitial()){	// Skip the inliers
+	      //   		Vector3f kp_pos = src_->getKeypoints()->at(i);
+			    // 	kp_pos = R*kp_pos+T;
+			    // 	Keypoint::Ptr kp = Keypoint::createKeypoint(
+		     //    		kp_pos, seg_ratios_[i], cb.cloud1_bshot[i]);
+		     //    	globalMap_.addKeypoint(kp);
+		    	// 	idx++;
+		    	// }
 		    	
 		    }
 		    cout<<"Map updated"<<endl;
-        cout<<"Update map time:\t"<<tictoc.toc()<<endl;
 
 		// }
 		
@@ -436,7 +409,6 @@ namespace myslam{
 	}
 
 	void LidarOdometry::updateCorrespondence(){
-		TicToc tictoc;
 		corrs.clear();
 	    corrs.reserve(corr.size());
 	    for(auto& co: corr){
@@ -447,7 +419,6 @@ namespace myslam{
 	    }
 
 		cout<<"inlier size:\t"<<corr.size()<<endl;	  
-        cout<<"Update corr time:\t"<<tictoc.toc()<<endl;
 
 	}
 

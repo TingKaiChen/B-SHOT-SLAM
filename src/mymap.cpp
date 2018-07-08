@@ -15,7 +15,7 @@ namespace myslam{
 			bool isCandidate = true;
 			for(auto& kp:keypoints_[block_id]){
 				if((keypoint->getPosition()-kp.first).norm() < 800 &&
-					keypoint->getSegRatio() < kp.second->getSegRatio()){
+					keypoint->getSegRatio() <= kp.second->getSegRatio()){
 					isCandidate = false;
 				}
 			}

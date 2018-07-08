@@ -55,7 +55,6 @@ int main( int argc, char* argv[] )
             while(ss>>num){
                 vec[i++] = num;
             }
-            // cout<<vec<<endl<<endl;
             LoadTrajectory.push_back(vec);
         }
     }
@@ -137,13 +136,11 @@ int main( int argc, char* argv[] )
                 lo.updateCorrespondence();
             }
             cv::Mat v;
-            // Vector3f position(fptr->getPose().matrix().topRightCorner<3,1>());
             Vector3f position(fptr->getPose().topRightCorner<3,1>());
             cv::eigen2cv(position, v);
             Trajectory.push_back(v);
 
             // Point cloud transformation
-            // Matrix3f R = fptr->getPose().matrix().block<3,3>(0, 0);
             Matrix3f R = fptr->getPose().block<3,3>(0, 0);
             Vector3f T = position;
             int i=0;
@@ -244,7 +241,6 @@ int main( int argc, char* argv[] )
             // Create Widget: correspondences
             vector<pair<Vector3f,Vector3f> > corrs = lo.getCorrespondences();
             int linenum = 0;
-            // cout<<"line num:\t"<<corrs.size()<<endl;
             for(auto& corr: corrs){
                 Vector3f pt1_eigen = R*corr.first+T;
                 cv::Point3d pt1(pt1_eigen[0]+180000, pt1_eigen[1], pt1_eigen[2]);
@@ -269,11 +265,6 @@ int main( int argc, char* argv[] )
 
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
-            // SE3 T_diff = lo.getTransformationDiff();
-            // Vector3f trans = T_diff.log().head<3>();
-            // Vector3f rot = T_diff.log().tail<3>();
-            // cout<<"trans diff:\t"<<trans[0]<<" "<<trans[1]<<" "<<trans[2]<<endl;
-            // cout<<"rot diff:\t"<<rot[0]<<" "<<rot[1]<<" "<<rot[2]<<endl;
 
             if(frame_id == 2681){
                 isStop = true;

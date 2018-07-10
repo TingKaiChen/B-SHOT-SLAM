@@ -2,7 +2,9 @@
 
 namespace myslam{
 	Preprocessor::Preprocessor(){
-
+		have_sel_list_ = false;
+		save_sel_ = true;
+		vert_init_ = -0.6;
 	}
 
 	Preprocessor::Preprocessor(vector<velodyne::Laser>& lasers, vector<double>& vertAngle, shared_ptr<vector<Vector3f>> pc){
@@ -10,10 +12,18 @@ namespace myslam{
 		pc_ = pc;
 		vertAngle_ = vertAngle;  // Degree
 	    sort(vertAngle_.begin(), vertAngle_.end());
+	    have_sel_list_ = false;
+		save_sel_ = true;
+		vert_init_ = -0.6;
 	}
 
 	void Preprocessor::setLasers(vector<velodyne::Laser>& lasers){
 		lasers_ = lasers;
+	}
+
+	void Preprocessor::setSelectedPoints(vector<int>& selptlist){
+		selpts_ = selptlist;
+		sort(selpts_.begin(), selpts_.end());
 	}
 
 	void Preprocessor::setVerticalAngles(vector<double>& vertAngle){
@@ -29,6 +39,8 @@ namespace myslam{
         if( lasers_.empty() ){
         	return false;
         }
+        int i = 0;
+        int selidx = 0;
         for( const velodyne::Laser& laser : lasers_ ){
             // Distance unit: mm?
             const double distance = static_cast<double>( laser.distance )*2;
@@ -40,26 +52,42 @@ namespace myslam{
             double z = static_cast<double>( ( distance * std::sin( vertical ) ) );
 
             rimg[azimuth][vertical] = distance;
-            rimg[azimuth][-0.6] = 4340;	// The smallest vertical radian = -30.67*pi/180 = -0.53
+            rimg[azimuth][vert_init_] = 2450/sin(vert_init_);	// The smallest vertical radian = -30.67*pi/180 = -0.53
             rmmap[azimuth][vertical] = 0;
-            rmmap[azimuth][-0.6] = 1;
+            rmmap[azimuth][vert_init_] = 1;
+            if(!have_sel_list_){
+            	selmap[azimuth][vertical] = true;
+            }
+            else if(selidx < selpts_.size() && selpts_[selidx] == i){
+	            selmap[azimuth][vertical] = true;
+	            selidx++;
+            }
+            else{
+            	selmap[azimuth][vertical] = false;
+            }
+        	i++;
         }
         return true;
 	}
 
 	void Preprocessor::removeGround(){
 		for(auto& col: rimg){
+			bool isInitVert = true;
 	        bool lost_pt = false;
 	        bool set_th_pt = false;
 	        bool prev_is_ground = true;
-	        double vert_prev = -0.6;	
-	        double x_0 = (-2450/tan(vert_prev))*cos(col.first);
-	        double y_0 = (-2450/tan(vert_prev))*sin(col.first);
+	        double vert_prev = vert_init_;	
+	        double x_0 = (-2450/tan(vert_prev))*sin(col.first);
+	        double y_0 = (-2450/tan(vert_prev))*cos(col.first);
 	        double z_0 = -2450;
 	        Vector3f p_prev(x_0, y_0, z_0);
 	        Vector3f p_th(x_0, y_0, z_0);
 
 	        for(auto& vert: col.second){
+	        	if(isInitVert){	// Do not consider initial start point
+	        		isInitVert = false;
+	        		continue;
+	        	}
 	            double x = vert.second*cos(vert.first)*sin(col.first);
 	            double y = vert.second*cos(vert.first)*cos(col.first);
 	            double z = vert.second*sin(vert.first);
@@ -162,13 +190,14 @@ namespace myslam{
 	void Preprocessor::writePointCloud(){
 		for(auto& col: rimg){
             for(auto& vert: col.second){
-                if(vert.second == 0 || vert.first == -0.6)
+                if(vert.second == 0 || vert.first == vert_init_)
                     continue;
                 double x = vert.second*cos(vert.first)*sin(col.first);
                 double y = vert.second*cos(vert.first)*cos(col.first);
                 double z = vert.second*sin(vert.first);
                 Vector3f pt(x, y, z);
-                if(rmmap[col.first][vert.first] == 0){
+                if(rmmap[col.first][vert.first] == 0 && 
+                   selmap[col.first][vert.first] == save_sel_){
                 	pc_->push_back(pt);
                 }
             }
@@ -179,6 +208,7 @@ namespace myslam{
 		pc_->clear();
 		rimg.clear();
 		rmmap.clear();
+        selmap.clear();
 		while(!readFrame()){};
 		removeGround();
 		removeOccluded();

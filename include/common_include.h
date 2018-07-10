@@ -39,6 +39,7 @@ using cv::Mat;
 #include <bitset>
 #include <ctime>
 #include <cmath>
+#include <algorithm>
 
 #include "tic_toc.h"
 

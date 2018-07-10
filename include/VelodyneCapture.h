@@ -596,7 +596,7 @@ namespace velodyne
             {
             };
 
-            inline vector<double> getVerticalAngle(){return lut;};
+            inline std::vector<double> getVerticalAngle(){return lut;};
 
         private:
             void initialize()

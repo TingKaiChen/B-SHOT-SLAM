@@ -30,7 +30,7 @@ int main( int argc, char* argv[] )
         ifs.open(argv[3]);
 
     // Open VelodyneCapture that retrieve from PCAP
-    velodyne::HDL32ECapture capture( argv[1], 554 );
+    velodyne::HDL32ECapture capture( argv[1], 57 );
 
     if( !capture.isOpen() ){
         std::cerr << "Can't open VelodyneCapture." << std::endl;
@@ -62,7 +62,7 @@ int main( int argc, char* argv[] )
             double max_z = 0;
             double min_z = 0;
             // Convert to 3-dimention Coordinates
-            buffer.resize( lasers.size() );
+            buffer.reserve( lasers.size() );
             for( const velodyne::Laser& laser : lasers ){
                 const double distance = static_cast<double>( laser.distance );
                 const double azimuth  = laser.azimuth  * CV_PI / 180.0;

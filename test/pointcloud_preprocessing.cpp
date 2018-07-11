@@ -35,10 +35,15 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 57;
+    int Start_Frame = 482;
     bool Show_SelectPT = true;
     double vert_init = -0.6;
+    // double vert_init = -0.9;
+    // double vert_init = -1.2;
     // double vert_init = -CV_PI/2;
+    // double lowpt_th = -1950;
+    // double lowpt_th = -3000;
+    double lowpt_th = -1450;
 
     if(argc < 2){
         cerr<<"./odometry_test pcap_data [Save_File] [Load_File]"<<endl;
@@ -77,7 +82,7 @@ int main( int argc, char* argv[] )
     vector<myslam::Frame::Ptr> FrameSequence;
 
     int frame_num = 519;
-    int frame_id = 0;
+    int frame_id = Start_Frame;
     double max_dist = 0;
     vector<double> vertAngle = capture.getVerticalAngle();  // Degree
     sort(vertAngle.begin(), vertAngle.end());
@@ -85,6 +90,7 @@ int main( int argc, char* argv[] )
     myslam::Preprocessor preprocessor;
     preprocessor.setVerticalAngles(vertAngle);
     preprocessor.setVerticalInitial(vert_init);
+    preprocessor.setLowPtThreshold(lowpt_th);
 
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
@@ -260,7 +266,7 @@ int main( int argc, char* argv[] )
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
             // if(frame_id == 1){
-                // isStop = true;
+                isStop = true;
             // }
         }
         viewer.spinOnce();

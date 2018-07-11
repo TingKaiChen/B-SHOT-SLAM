@@ -25,6 +25,7 @@ namespace myslam{
 			void haveSelectList(bool havesellist){have_sel_list_ = havesellist;};
 			void setVerticalAngles(vector<double>& vertAngle);
 			void setVerticalInitial(double vertinit){vert_init_ = vertinit;};
+			void setLowPtThreshold(double lowptth){lowpt_th = lowptth;};
 			void setPointCloud(shared_ptr<vector<Vector3f>> pc);
 			bool readFrame();		// Read in a frame
 			void removeGround();	// Remove ground points

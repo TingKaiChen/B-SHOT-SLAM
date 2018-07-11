@@ -24,13 +24,17 @@ void MouseCallback(const cv::viz::MouseEvent&, void*);
 // ./ptpicking source.pcap outputIDX.txt inputIDX.txt
 int main( int argc, char* argv[] )
 {
+    // Parameters
+    int Start_Frame = 482;
+    int frame_id = Start_Frame;
     bool hasSelectedPTs = false;
+
     std::ifstream ifs;
     if(argc >= 4)
         ifs.open(argv[3]);
 
     // Open VelodyneCapture that retrieve from PCAP
-    velodyne::HDL32ECapture capture( argv[1], 57 );
+    velodyne::HDL32ECapture capture( argv[1], Start_Frame );
 
     if( !capture.isOpen() ){
         std::cerr << "Can't open VelodyneCapture." << std::endl;
@@ -118,6 +122,8 @@ int main( int argc, char* argv[] )
                 else
                     hasSelectedPTs = false;
             }
+
+            std::cout<<"Frame:\t#"<<(frame_id++)<<std::endl;
         }
         viewer.spinOnce();
     }

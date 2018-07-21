@@ -91,7 +91,7 @@ namespace myslam{
         		float sum = 0;
         		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
         			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
-        			sum += ctvec.dot(pt-sp);
+        			sum += ctvec.dot(pt-sp);	// TODO: normalization?
         		}
         		float seg_ratio = abs(sum)/ptIdxRadSearch.size();
 

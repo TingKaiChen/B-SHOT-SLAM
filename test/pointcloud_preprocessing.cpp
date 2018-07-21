@@ -35,15 +35,15 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 482;
+    int Start_Frame = 150;
     bool Show_SelectPT = true;
     double vert_init = -0.6;
     // double vert_init = -0.9;
     // double vert_init = -1.2;
     // double vert_init = -CV_PI/2;
-    // double lowpt_th = -1950;
+    double lowpt_th = -1950;
     // double lowpt_th = -3000;
-    double lowpt_th = -1450;
+    // double lowpt_th = -1450;
 
     if(argc < 2){
         cerr<<"./odometry_test pcap_data [Save_File] [Load_File]"<<endl;
@@ -81,7 +81,6 @@ int main( int argc, char* argv[] )
     // Frame sequence
     vector<myslam::Frame::Ptr> FrameSequence;
 
-    int frame_num = 519;
     int frame_id = Start_Frame;
     double max_dist = 0;
     vector<double> vertAngle = capture.getVerticalAngle();  // Degree
@@ -211,11 +210,18 @@ int main( int argc, char* argv[] )
             // viewer2.showWidget( "Cloud", cloud );
 
             // Create Widget: ground point cloud
-            cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
-            cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
-            cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // Show Point Cloud
-            viewer.showWidget( "Cloud_g", cloud_g );
+            if(!buffer_g.empty()){
+                cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
+                cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
+                cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud_g", cloud_g );
+            }
+            // cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
+            // cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
+            // cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+            // // Show Point Cloud
+            // viewer.showWidget( "Cloud_g", cloud_g );
 
             // Create Widget: Sensor position
             cv::Mat cloudMat_sensor = cv::Mat( static_cast<int>( buffer_sensor.size() ), 1, CV_64FC3, &buffer_sensor[0] );

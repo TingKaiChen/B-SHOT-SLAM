@@ -26,13 +26,20 @@ bool isStop = false;
 // ./ptpicking source.pcap outputIDX.txt inputIDX.txt
 int main( int argc, char* argv[] )
 {
+    // Parameters
+    int Start_Frame = 686;
+    bool Show_SelectPT = true;
+    double vert_init = -0.6;
+    double lowpt_th = -1450;
+
+
     if(argc < 2){
         cerr<<"./odometry_test pcap_data [Save_File] [Load_File]"<<endl;
         return -1;
     }
 
     // Open VelodyneCapture that retrieve from PCAP
-    velodyne::HDL32ECapture capture( argv[1], 11 );
+    velodyne::HDL32ECapture capture( argv[1], Start_Frame );
     // velodyne::HDL32ECapture capture( argv[1], 1850 );// low computation time
     // velodyne::HDL32ECapture capture( argv[1], 2000 );   // ICP deviation
 
@@ -58,6 +65,15 @@ int main( int argc, char* argv[] )
             LoadTrajectory.push_back(vec);
         }
     }
+    
+    // Load Selected Point List
+    ifstream ifs;
+    if(argc >= 3){
+        ifs.open(argv[2]);
+        cout<<"Load selected point list."<<endl;
+    }
+
+    
 
     // Create Viewer
     VizViewer viewer( "Velodyne" );
@@ -65,6 +81,8 @@ int main( int argc, char* argv[] )
 
     // Register Callback
     viewer.registerKeyboardCallback(KeyboardCallback, &viewer);
+    viewer.setBackgroundColor(cv::viz::Color(128));
+    corrviewer.setBackgroundColor(cv::viz::Color(128));
 
     // Frame sequence
     vector<myslam::Frame::Ptr> FrameSequence;
@@ -77,9 +95,11 @@ int main( int argc, char* argv[] )
 
     myslam::Preprocessor preprocessor;
     preprocessor.setVerticalAngles(vertAngle);
+    preprocessor.setVerticalInitial(vert_init);
+    preprocessor.setLowPtThreshold(lowpt_th);
 
     int frame_num = 0;
-    int frame_id = 0;
+    int frame_id = Start_Frame;
 
     while( capture.isRun() && !viewer.wasStopped() ){
         if(!isStop){
@@ -103,6 +123,25 @@ int main( int argc, char* argv[] )
 
             // Point cloud preprocessing
             preprocessor.setLasers(lasers);
+            // Select point list
+            string line;
+            int idx;
+            if(ifs.is_open() && std::getline(ifs, line)){
+                std::stringstream ss(line);
+                std::vector<int> SelectList;
+                while(ss>>idx){
+                    SelectList.push_back(idx);
+                }
+                if(!SelectList.empty()){
+                    preprocessor.haveSelectList(true);
+                    preprocessor.saveSelectPoints(Show_SelectPT);
+                    preprocessor.setSelectedPoints(SelectList);
+                }
+                else{
+                    preprocessor.haveSelectList(false);
+                    preprocessor.saveSelectPoints(true);
+                }
+            }
             preprocessor.run();
 
             // Convert to 3-dimention Coordinates
@@ -266,9 +305,9 @@ int main( int argc, char* argv[] )
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
-            if(frame_id == 2681){
+            // if(frame_id == 2681){
                 isStop = true;
-            }
+            // }
 
         // isStop = true;
         }
@@ -277,9 +316,9 @@ int main( int argc, char* argv[] )
     }
 
     // Save trajectories
-    if(argc >= 3){
+    if(argc >= 5){
         ofstream ofs;
-        ofs.open(argv[2]);
+        ofs.open(argv[4]);
         for(auto& pos: Trajectory){
             Vector3f pos_;
             cv::cv2eigen(cv::Mat(pos), pos_);

@@ -276,6 +276,26 @@ namespace myslam{
 	    T_best_ = icp.getFinalTransformation()*T_est;
 
 	    // T_best_ = Ransac_based_Rejection.getBestTransformation();
+
+	    // Correspondence average distance
+		cout<<"Corr num:\t"<<corr.size()<<endl;
+		pcl::PointCloud<PointXYZ> corr_cloud;
+	    // pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_j);
+	    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_best_);
+		float dist_avg = 0;
+		for(auto c: corr){
+			dist_avg += pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+		}
+		dist_avg = dist_avg/corr.size();
+		cout<<"Corr avg dist:\t"<<dist_avg<<endl;
+		float dist_sd = 0;
+		for(auto c: corr){
+			float dist_corr = pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+			// cout<<dist_corr<<endl;
+			dist_sd += (dist_corr - dist_avg) * (dist_corr - dist_avg);			
+		}
+		dist_sd = sqrt(dist_sd/corr.size());
+		cout<<"Corr SD dist:\t"<<dist_sd<<endl;
 	}
 
 	void LidarOdometry::poseEstimation(){

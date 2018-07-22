@@ -34,7 +34,7 @@ int main( int argc, char* argv[] )
 
 
     if(argc < 2){
-        cerr<<"./odometry_test pcap_data [Save_File] [Load_File]"<<endl;
+        cerr<<"./odometry_test pcap_data [Selected Points] [Load_Traj] [Save_Traj]"<<endl;
         return -1;
     }
 
@@ -65,7 +65,7 @@ int main( int argc, char* argv[] )
             LoadTrajectory.push_back(vec);
         }
     }
-    
+
     // Load Selected Point List
     ifstream ifs;
     if(argc >= 3){

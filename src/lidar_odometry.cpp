@@ -91,6 +91,9 @@ namespace myslam{
         		float sum = 0;
         		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
         			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
+        			if(ctvec.norm() == 0 || (pt-sp).norm() == 0)
+        				continue;
+        			// sum += ctvec.dot(pt-sp)/(ctvec.norm()*(pt-sp).norm());	// TODO: normalization?
         			sum += ctvec.dot(pt-sp);	// TODO: normalization?
         		}
         		float seg_ratio = abs(sum)/ptIdxRadSearch.size();
@@ -277,25 +280,30 @@ namespace myslam{
 
 	    // T_best_ = Ransac_based_Rejection.getBestTransformation();
 
-	    // Correspondence average distance
-		cout<<"Corr num:\t"<<corr.size()<<endl;
-		pcl::PointCloud<PointXYZ> corr_cloud;
-	    // pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_j);
-	    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_best_);
-		float dist_avg = 0;
-		for(auto c: corr){
-			dist_avg += pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
-		}
-		dist_avg = dist_avg/corr.size();
-		cout<<"Corr avg dist:\t"<<dist_avg<<endl;
-		float dist_sd = 0;
-		for(auto c: corr){
-			float dist_corr = pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
-			// cout<<dist_corr<<endl;
-			dist_sd += (dist_corr - dist_avg) * (dist_corr - dist_avg);			
-		}
-		dist_sd = sqrt(dist_sd/corr.size());
-		cout<<"Corr SD dist:\t"<<dist_sd<<endl;
+	 //    // Correspondence average distance
+		// cout<<"Corr num:\t"<<corr.size()<<endl;
+		// pcl::PointCloud<PointXYZ> corr_cloud;
+	 //    // pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_j);
+	 //    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_best_);
+		// float dist_avg = 0;
+		// for(auto c: corr){
+		// 	dist_avg += pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+		// }
+		// dist_avg = dist_avg/corr.size();
+		// cout<<"Corr avg dist:\t"<<dist_avg<<endl;
+		// vector<float> dist_vec;
+		// dist_vec.reserve(corr.size());
+		// float dist_sd = 0;
+		// for(auto c: corr){
+		// 	float dist_corr = pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+		// 	// cout<<dist_corr<<endl;
+		// 	dist_sd += (dist_corr - dist_avg) * (dist_corr - dist_avg);			
+		// 	dist_vec.push_back(dist_corr);
+		// }
+		// dist_sd = sqrt(dist_sd/corr.size());
+		// cout<<"Corr SD dist:\t"<<dist_sd<<endl;
+		// sort(dist_vec.begin(), dist_vec.end());
+		// cout<<"Corr med:\t"<<dist_vec[dist_vec.size()/2]<<endl;
 	}
 
 	void LidarOdometry::poseEstimation(){
@@ -315,10 +323,10 @@ namespace myslam{
 		    Matrix3f R = mat.block<3,3>(0, 0);
 	        Vector3f T = mat.topRightCorner<3,1>();
 		    for(int i = 0, idx = 0; i < cb.cloud1_bshot.size(); i++){
-		    	if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
-		    		idx++;
-		    		continue;
-		    	}
+		    	// if(i == corr[idx].index_query && !isInitial()){	// Skip the inliers
+		    	// 	idx++;
+		    	// 	continue;
+		    	// }
 		    	Vector3f kp_pos = src_->getKeypoints()->at(i);
 		    	kp_pos = R*kp_pos+T;
 		    	Keypoint::Ptr kp = Keypoint::createKeypoint(

@@ -27,7 +27,7 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 686;
+    int Start_Frame = 1;
     bool Show_SelectPT = true;
     double vert_init = -0.6;
     double lowpt_th = -1450;
@@ -231,7 +231,7 @@ int main( int argc, char* argv[] )
             viewer.showWidget( "Trajectory", traj );
 
             // Create Widget: trajectory_load
-            if(argc >= 4){
+            if(!LoadTrajectory.empty()){
                 cv::Mat loadtrajMat = cv::Mat( static_cast<int>( LoadTrajectory.size() ), 1, CV_64FC3, &LoadTrajectory[0] );
                 cv::viz::WCloud loadtraj( loadtrajMat, cv::viz::Color::gold() );
                 loadtraj.setRenderingProperty(cv::viz::POINT_SIZE, 4);
@@ -305,11 +305,10 @@ int main( int argc, char* argv[] )
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
-            // if(frame_id == 2681){
+            if(frame_id == 2681){
                 isStop = true;
-            // }
+            }
 
-        // isStop = true;
         }
         viewer.spinOnce();
         corrviewer.spinOnce();

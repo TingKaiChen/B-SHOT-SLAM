@@ -25,7 +25,7 @@ void MouseCallback(const cv::viz::MouseEvent&, void*);
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 280;
+    int Start_Frame = 1;
     int frame_id = Start_Frame;
     bool hasSelectedPTs = false;
 

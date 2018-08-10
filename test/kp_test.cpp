@@ -160,6 +160,7 @@ int main( int argc, char* argv[] )
                 lo.featureMatching();
                 lo.evaluateEstimation();
                 lo.poseEstimation();
+                lo.kpEvaluation();
                 lo.updateMap();
                 lo.updateCorrespondence();
             }
@@ -171,6 +172,7 @@ int main( int argc, char* argv[] )
                 lo.featureMatching();
                 lo.evaluateEstimation();
                 lo.poseEstimation();
+                lo.kpEvaluation();
                 lo.updateMap();
                 lo.updateCorrespondence();
             }
@@ -305,9 +307,9 @@ int main( int argc, char* argv[] )
 
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
-            if(frame_id == 2681){
+            // if(frame_id == 2681){
                 isStop = true;
-            }
+            // }
 
         }
         viewer.spinOnce();

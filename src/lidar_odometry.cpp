@@ -42,6 +42,7 @@ namespace myslam{
 	void LidarOdometry::passSrc2Ref(){
 		ref_ = src_;
 		ref_pcl_ = src_pcl_;
+		isskps_ref = isskps_src;
 	}
 
     typedef pair<int, float> IdxRatioPair;
@@ -93,8 +94,8 @@ namespace myslam{
         			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
         			if(ctvec.norm() == 0 || (pt-sp).norm() == 0)
         				continue;
-        			// sum += ctvec.dot(pt-sp)/(ctvec.norm()*(pt-sp).norm());	// TODO: normalization?
-        			sum += ctvec.dot(pt-sp);	// TODO: normalization?
+        			sum += ctvec.dot(pt-sp)/(ctvec.norm()*(pt-sp).norm());	// TODO: normalization?
+        			// sum += ctvec.dot(pt-sp);	// TODO: normalization?
         		}
         		float seg_ratio = abs(sum)/ptIdxRadSearch.size();
 
@@ -149,11 +150,17 @@ namespace myslam{
         cb.cloud2 = ref_pcl_;
 		cb.cloud1_keypoints = eigen2pcl(src_->getKeypoints());
 		cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
+
+		// ISS keypoint detection
+		isskps_src = issKpDetection(src_pcl_);
+		if(isInitial()){
+			isskps_ref = isskps_src;
+		}
 	}
 
 	void LidarOdometry::computeDescriptors(){
-	    cb.calculate_normals (3000);
-	    cb.calculate_SHOT (3000);
+	    cb.calculate_normals (3000);	// 60
+	    cb.calculate_SHOT (3000);		// 60
 	    cb.compute_bshot();
 
         std::shared_ptr<vector<std::bitset<352>>> descriptor(new vector<std::bitset<352>>);
@@ -363,6 +370,77 @@ namespace myslam{
 
 		cout<<"inlier size:\t"<<corr.size()<<endl;	  
 
+	}
+
+	void LidarOdometry::kpEvaluation(){
+	    pcl::PointCloud<PointXYZ> kp_src, kp_ref;
+		kp_src = eigen2pcl(src_->getKeypoints());
+		kp_ref = eigen2pcl(ref_->getKeypoints());
+		// pcl::transformPointCloud(eigen2pcl(src_->getKeypoints()), kp_src, src_->getPose());
+		// pcl::transformPointCloud(eigen2pcl(ref_->getKeypoints()), kp_ref, ref_->getPose());
+        pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+        kdtree.setInputCloud (kp_ref.makeShared());
+        pcl::PointXYZ searchPoint; 
+        float hit_point = 0.0;
+        float sqDistLimit = 30*30;
+        for(int i = 0; i < kp_src.points.size(); i++){
+        	// Skip the origin
+        	if(kp_src.points[i].x == 0 && kp_src.points[i].y == 0 && kp_src.points[i].z == 0)
+        		continue;
+        	searchPoint = kp_src.points[i];
+        	vector<int> ptIdxRadSearch(1);
+        	vector<float> ptRadSqarDistance(1);
+        	if(kdtree.nearestKSearch(searchPoint, 1, ptIdxRadSearch, ptRadSqarDistance) > 0){
+        		if(ptRadSqarDistance[0] <= sqDistLimit){
+        			hit_point++;
+        		}
+        	}
+        }
+        cout<<"Hit num:\t"<<hit_point<<endl;
+        cout<<"Src num:\t"<<kp_src.points.size()<<endl;
+        cout<<"Ref num:\t"<<kp_ref.points.size()<<endl;
+        cout<<"Hit rate:\t"<<(hit_point/kp_src.points.size())<<endl;
+
+        // ISS kp analysis
+        pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_iss;
+        kdtree_iss.setInputCloud (isskps_ref.makeShared());
+        pcl::PointXYZ searchPoint_iss; 
+        hit_point = 0.0;
+        for(int i = 0; i < isskps_src.points.size(); i++){
+        	// Skip the origin
+        	if(isskps_src.points[i].x == 0 && isskps_src.points[i].y == 0 && isskps_src.points[i].z == 0)
+        		continue;
+        	searchPoint_iss = isskps_src.points[i];
+        	vector<int> ptIdxRadSearch_iss(1);
+        	vector<float> ptRadSqarDistance_iss(1);
+        	if(kdtree_iss.nearestKSearch(searchPoint_iss, 1, ptIdxRadSearch_iss, ptRadSqarDistance_iss) > 0){
+        		if(ptRadSqarDistance_iss[0] <= sqDistLimit){
+        			hit_point++;
+        		}
+        	}
+        }
+        cout<<"=====ISS====="<<endl;
+        cout<<"Hit num:\t"<<hit_point<<endl;
+        cout<<"Src num:\t"<<isskps_src.points.size()<<endl;
+        cout<<"Ref num:\t"<<isskps_ref.points.size()<<endl;
+        cout<<"Hit rate:\t"<<(hit_point/isskps_ref.points.size())<<endl;
+        cout<<"============="<<endl;
+	}
+
+	pcl::PointCloud<pcl::PointXYZ> LidarOdometry::issKpDetection(pcl::PointCloud<pcl::PointXYZ> kps){
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::PointXYZ> isskps;
+		pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZ> iss_detector;
+		iss_detector.setSearchMethod(kdtree);
+		iss_detector.setSalientRadius(60);
+		iss_detector.setNonMaxRadius(40);
+		iss_detector.setThreshold21(0.975);
+		iss_detector.setThreshold32(0.975);
+		iss_detector.setMinNeighbors(5);
+		iss_detector.setNumberOfThreads(4);
+		iss_detector.setInputCloud(kps.makeShared());
+		iss_detector.compute(isskps);
+		return isskps;
 	}
 
 	Frame::PCPtr LidarOdometry::getKeypoints(){

@@ -41,7 +41,7 @@ xlim([686 692]);
 ylim([100 800]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','northeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','northeast')
 title('Median of Correspondence Distance in Structural Scene')
 saveas(gcf, './CorrDist_med_structural_F687.pdf')
 
@@ -57,7 +57,7 @@ xlim([686 692]);
 ylim([100 800]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','northeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','northeast')
 title('Mean of Correspondence Distance in Structural Scene')
 saveas(gcf, './CorrDist_mean_structural_F687.pdf')
 
@@ -73,7 +73,7 @@ xlim([686 692]);
 ylim([220 530]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','northeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','northeast')
 title('STD. of Correspondence Distance in Structural Scene')
 saveas(gcf, './CorrDist_std_structural_F687.pdf')
 
@@ -86,7 +86,7 @@ xlim([686 692]);
 ylim([30 110]);
 xlabel('Frame')
 ylabel('Correspondence number')
-legend('COS\_Sum','DP\_Sum','No\_sum','Location','southeast')
+legend('CVSN','CVS','CV','Location','southeast')
 title('Correspondence Number in Structural Scene')
 saveas(gcf, './CorrNum_structural_F687.pdf')
 
@@ -134,7 +134,7 @@ xlim([280 286]);
 ylim([-30 470]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','southeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','southeast')
 title('Median of Correspondence Distance in Structureless Scene')
 saveas(gcf, './CorrDist_med_structureless_F281.pdf')
 
@@ -150,7 +150,7 @@ xlim([280 286]);
 ylim([-30 470]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','southeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','southeast')
 title('Mean of Correspondence Distance in Structureless Scene')
 saveas(gcf, './CorrDist_mean_structureless_F281.pdf')
 
@@ -166,7 +166,7 @@ xlim([280 286]);
 ylim([90 290]);
 xlabel('Frame')
 ylabel('(mm)')
-legend('COS\_Sum','DP\_Sum','No\_sum','COS\_Sum+ICP','DP\_Sum+ICP','No\_sum+ICP','Location','southeast')
+legend('CVSN','CVS','CV','CVSN+ICP','CVS+ICP','CV+ICP','Location','southeast')
 title('STD. of Correspondence Distance in Structureless Scene')
 saveas(gcf, './CorrDist_std_structureless_F281.pdf')
 
@@ -179,6 +179,6 @@ xlim([280 286]);
 ylim([80 160]);
 xlabel('Frame')
 ylabel('Correspondence number')
-legend('COS\_Sum','DP\_Sum','No\_sum','Location','southeast')
+legend('CVSN','CVS','CV','Location','southeast')
 title('Correspondence Number in Structureless Scene')
 saveas(gcf, './CorrNum_structureless_F281.pdf')

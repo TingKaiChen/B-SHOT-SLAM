@@ -18,3 +18,6 @@ target_link_libraries( submap_test myslam )
 
 add_executable( icp_test icp_test.cpp )
 target_link_libraries( icp_test myslam )
+
+add_executable( kp_test kp_test.cpp )
+target_link_libraries( kp_test myslam )

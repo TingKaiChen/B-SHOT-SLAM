@@ -7,6 +7,7 @@
 // #include "map.h"
 #include "mymap.h"
 #include <pcl/registration/icp.h>
+#include <pcl/keypoints/iss_3d.h>
 
 namespace myslam{
 	class LidarOdometry{
@@ -26,6 +27,8 @@ namespace myslam{
 			void evaluateEstimation();
 			void updateMap();
 			void updateCorrespondence();
+			void kpEvaluation();
+			pcl::PointCloud<pcl::PointXYZ> issKpDetection(pcl::PointCloud<pcl::PointXYZ> kps);
 			void passSrc2Ref();
 			bool isInitial(){return status_ == INITIAL;};
 			Frame::Ptr getRefFrame(){return ref_;};
@@ -55,6 +58,9 @@ namespace myslam{
 		    vector<pair<Vector3f,Vector3f> > corrs;
 		    Matrix4f T_best_;
 		    bool shouldUpdateMap;
+
+		    pcl::PointCloud<pcl::PointXYZ> isskps_src;
+		    pcl::PointCloud<pcl::PointXYZ> isskps_ref;
 	};
 }
 #endif

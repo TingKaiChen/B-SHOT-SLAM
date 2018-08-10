@@ -112,6 +112,13 @@ namespace myslam{
 	                    prev_is_ground = false;
 	                }
 	            }
+	            
+	            // // Use direct threshold to deal with initial start point problem
+	            // if((vert.second*cos(vert.first)) < 3900 && z > -2450){
+	            // 	rmmap[col.first][vert.first] = 0;
+             //        prev_is_ground = false;		    	
+             //    }
+
 	            // Lower ground condition
 	            else if(!prev_is_ground && p_curr[2] < lowpt_th && grad < grad_th){
 	                rmmap[col.first][vert.first] = 1;
@@ -133,12 +140,16 @@ namespace myslam{
 	                prev_is_ground = false;
 	            }
 
+
+
 	            // Set start point
 	            if(set_th_pt && (p_curr[2]-p_th[2]) < height_th && p_curr[2] < p_prev[2]){
 	                set_th_pt = false;
 	                rmmap[col.first][vert.first] = 1;
 	                prev_is_ground = true;
 	            }
+
+
 
 	            // Remove self-car
 	            if(x <= 820 && x >= -820 && 

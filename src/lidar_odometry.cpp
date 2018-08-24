@@ -2,7 +2,8 @@
 
 namespace myslam{
 	LidarOdometry::LidarOdometry(): 
-		ref_(nullptr), src_(nullptr), test_(nullptr), status_(INITIAL), shouldUpdateMap(true){
+		ref_(nullptr), src_(nullptr), test_(nullptr), status_(INITIAL), shouldUpdateMap(true), 
+		sr_type_("CV"), evaluate_icp_(true), evaluate_corr_(false), run_icp_(true){
 
 	}
 
@@ -48,10 +49,12 @@ namespace myslam{
     typedef pair<int, float> IdxRatioPair;
     bool comparator(const IdxRatioPair& l, const IdxRatioPair& r){return l.second < r.second;}
 	void LidarOdometry::extractKeypoints(){
+		TicToc t1;
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
         kdtree.setInputCloud (src_pcl_.makeShared());
         pcl::PointXYZ searchPoint; 
         vector<IdxRatioPair> SegRatio;
+        SegRatio.reserve(src_pcl_.points.size());
 
         float neigh_num = 0;
         float neigh_cnt = 0;
@@ -74,48 +77,55 @@ namespace myslam{
     			Vector3f ct(centroid.x, centroid.y, centroid.z);
     			Vector3f sp(searchPoint.x, searchPoint.y, searchPoint.z);
     			Vector3f ctvec = sp-ct;
-    			// // Calculate segmentation ratio: vector version
-    			// struct VecNum{
-    			// 	float positive = 0.0f;
-    			// 	float negative = 0.0f;
-    			// } vecnum;
-       //  		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
-       //  			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
-       //  			if(ctvec.dot(pt-sp) > 0)
-       //  				vecnum.positive += 1;
-       //  			else if(ctvec.dot(pt-sp) < 0)
-       //  				vecnum.negative += 1;
-       //  		}
-       //  		float seg_ratio = 1-min(vecnum.positive, vecnum.negative)/max(vecnum.positive, vecnum.negative);
 
-    			// Calculate segmentation ratio: simplified vector version
-        		float sum = 0;
-        		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
-        			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
-        			if(ctvec.norm() == 0 || (pt-sp).norm() == 0)
-        				continue;
-        			sum += ctvec.dot(pt-sp)/(ctvec.norm()*(pt-sp).norm());	// TODO: normalization?
-        			// sum += ctvec.dot(pt-sp);	// TODO: normalization?
-        		}
-        		float seg_ratio = abs(sum)/ptIdxRadSearch.size();
+	        	float seg_ratio;
 
-        		// // Calculate segmentation ratio: simplified matrix version (slow)
-        		// float sum = 0;
-        		// MatrixXf neigh_pc(3, ptIdxRadSearch.size());
-        		// for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
-        		// 	neigh_pc.col(j) = Vector3f(src_pcl_.points[ptIdxRadSearch[j]].x, 
-        		// 							   src_pcl_.points[ptIdxRadSearch[j]].y, 
-        		// 							   src_pcl_.points[ptIdxRadSearch[j]].z).normalized();
-        		// }
-        		// float seg_ratio = abs((neigh_pc.transpose()*ctvec).sum())/ptIdxRadSearch.size();
+	        	if(sr_type_ == "CV"){
+	        		// Calculate segmentation ratio: CV
+	    			struct VecNum{
+	    				float positive = 0.0f;
+	    				float negative = 0.0f;
+	    			} vecnum;
+	        		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
+	        			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
+	        			if(ctvec.dot(pt-sp) > 0)
+	        				vecnum.positive += 1;
+	        			else if(ctvec.dot(pt-sp) < 0)
+	        				vecnum.negative += 1;
+	        		}
+	        		seg_ratio = 1-min(vecnum.positive, vecnum.negative)/max(vecnum.positive, vecnum.negative);	
+	        	}
+	        	else if(sr_type_ == "CVS"){
+	        		// Calculate segmentation ratio: CVS
+	        		float sum = 0;
+	        		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
+	        			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
+	        			if(ctvec.norm() == 0 || (pt-sp).norm() == 0)
+	        				continue;
+	        			sum += ctvec.dot(pt-sp);
+	        		}
+	        		seg_ratio = abs(sum)/ptIdxRadSearch.size();
+	        	}
+    			else if(sr_type_ == "CVSN"){
+    				// Calculate segmentation ratio: CVSN
+	        		float sum = 0;
+	        		for(size_t j = 0; j < ptIdxRadSearch.size(); j++){
+	        			Vector3f pt(src_pcl_.points[ptIdxRadSearch[j]].x, src_pcl_.points[ptIdxRadSearch[j]].y, src_pcl_.points[ptIdxRadSearch[j]].z);
+	        			if(ctvec.norm() == 0 || (pt-sp).norm() == 0)
+	        				continue;
+	        			sum += ctvec.dot(pt-sp)/(ctvec.norm()*(pt-sp).norm());
+	        		}
+	        		seg_ratio = abs(sum)/ptIdxRadSearch.size();
+    			}
 
         		if(isnan(seg_ratio))
         			continue;
         		SegRatio.push_back(IdxRatioPair(i, seg_ratio));
         	}
-        	cout<<"\rprocess: "<<float(i)/src_pcl_.points.size()*100;
+        	// cout<<"\rprocess: "<<float(i)/src_pcl_.points.size()*100;
         }
         cout<<endl;
+        cout<<"t1:\t"<<t1.toc()<<endl;
         // cout<<"AVG neigh number:\t"<<neigh_num/neigh_cnt<<endl;
         cout<<"Sorting...";
         sort(SegRatio.begin(), SegRatio.end(), comparator);
@@ -151,16 +161,18 @@ namespace myslam{
 		cb.cloud1_keypoints = eigen2pcl(src_->getKeypoints());
 		cb.cloud2_keypoints = eigen2pcl(ref_->getKeypoints());
 
+		TicToc t2;
 		// ISS keypoint detection
 		isskps_src = issKpDetection(src_pcl_);
+		cout<<"t2:\t"<<t2.toc()<<endl;
 		if(isInitial()){
 			isskps_ref = isskps_src;
 		}
 	}
 
 	void LidarOdometry::computeDescriptors(){
-	    cb.calculate_normals (3000);	// 60
-	    cb.calculate_SHOT (3000);		// 60
+	    cb.calculate_normals (3000);	// 60 or 3000
+	    cb.calculate_SHOT (3000);		// 60 or 3000
 	    cb.compute_bshot();
 
         std::shared_ptr<vector<std::bitset<352>>> descriptor(new vector<std::bitset<352>>);
@@ -283,34 +295,39 @@ namespace myslam{
 	    icp.setInputTarget(cb.cloud2_keypoints.makeShared());
 	    pcl::PointCloud<PointXYZ> icp_out;
 	    icp.align(icp_out);
-	    T_best_ = icp.getFinalTransformation()*T_est;
+	    if(run_icp_)
+		    T_best_ = icp.getFinalTransformation()*T_est;
+		else
+		    T_best_ = Ransac_based_Rejection.getBestTransformation();
 
-	    // T_best_ = Ransac_based_Rejection.getBestTransformation();
-
-	 //    // Correspondence average distance
-		// cout<<"Corr num:\t"<<corr.size()<<endl;
-		// pcl::PointCloud<PointXYZ> corr_cloud;
-	 //    // pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_j);
-	 //    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_best_);
-		// float dist_avg = 0;
-		// for(auto c: corr){
-		// 	dist_avg += pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
-		// }
-		// dist_avg = dist_avg/corr.size();
-		// cout<<"Corr avg dist:\t"<<dist_avg<<endl;
-		// vector<float> dist_vec;
-		// dist_vec.reserve(corr.size());
-		// float dist_sd = 0;
-		// for(auto c: corr){
-		// 	float dist_corr = pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
-		// 	// cout<<dist_corr<<endl;
-		// 	dist_sd += (dist_corr - dist_avg) * (dist_corr - dist_avg);			
-		// 	dist_vec.push_back(dist_corr);
-		// }
-		// dist_sd = sqrt(dist_sd/corr.size());
-		// cout<<"Corr SD dist:\t"<<dist_sd<<endl;
-		// sort(dist_vec.begin(), dist_vec.end());
-		// cout<<"Corr med:\t"<<dist_vec[dist_vec.size()/2]<<endl;
+	    // Correspondence average distance
+	    if(evaluate_corr_){
+			cout<<"Corr num:\t"<<corr.size()<<endl;
+			pcl::PointCloud<PointXYZ> corr_cloud;
+			if(evaluate_icp_)
+			    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_best_);
+			else
+			    pcl::transformPointCloud(cb.cloud1_keypoints, corr_cloud, T_j);
+			float dist_avg = 0;
+			for(auto c: corr){
+				dist_avg += pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+			}
+			dist_avg = dist_avg/corr.size();
+			cout<<"Corr avg dist:\t"<<dist_avg<<endl;
+			vector<float> dist_vec;
+			dist_vec.reserve(corr.size());
+			float dist_sd = 0;
+			for(auto c: corr){
+				float dist_corr = pcl::geometry::distance(corr_cloud[c.index_query], cb.cloud2_keypoints[c.index_match]);
+				// cout<<dist_corr<<endl;
+				dist_sd += (dist_corr - dist_avg) * (dist_corr - dist_avg);			
+				dist_vec.push_back(dist_corr);
+			}
+			dist_sd = sqrt(dist_sd/corr.size());
+			cout<<"Corr SD dist:\t"<<dist_sd<<endl;
+			sort(dist_vec.begin(), dist_vec.end());
+			cout<<"Corr med:\t"<<dist_vec[dist_vec.size()/2]<<endl;
+		}
 	}
 
 	void LidarOdometry::poseEstimation(){
@@ -396,10 +413,10 @@ namespace myslam{
         		}
         	}
         }
-        cout<<"Hit num:\t"<<hit_point<<endl;
+        cout<<"Repeat num:\t"<<hit_point<<endl;
         cout<<"Src num:\t"<<kp_src.points.size()<<endl;
         cout<<"Ref num:\t"<<kp_ref.points.size()<<endl;
-        cout<<"Hit rate:\t"<<(hit_point/kp_src.points.size())<<endl;
+        cout<<"Repeat rate:\t"<<(hit_point/kp_src.points.size())<<endl;
 
         // ISS kp analysis
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_iss;
@@ -420,10 +437,10 @@ namespace myslam{
         	}
         }
         cout<<"=====ISS====="<<endl;
-        cout<<"Hit num:\t"<<hit_point<<endl;
+        cout<<"Repeat num:\t"<<hit_point<<endl;
         cout<<"Src num:\t"<<isskps_src.points.size()<<endl;
         cout<<"Ref num:\t"<<isskps_ref.points.size()<<endl;
-        cout<<"Hit rate:\t"<<(hit_point/isskps_ref.points.size())<<endl;
+        cout<<"Repeat rate:\t"<<(hit_point/isskps_src.points.size())<<endl;
         cout<<"============="<<endl;
 	}
 
@@ -437,7 +454,7 @@ namespace myslam{
 		iss_detector.setThreshold21(0.975);
 		iss_detector.setThreshold32(0.975);
 		iss_detector.setMinNeighbors(5);
-		iss_detector.setNumberOfThreads(4);
+		iss_detector.setNumberOfThreads(1);
 		iss_detector.setInputCloud(kps.makeShared());
 		iss_detector.compute(isskps);
 		return isskps;
@@ -463,6 +480,14 @@ namespace myslam{
 			refkps->push_back(Vector3f(pt.x, pt.y, pt.z));
 		}
 		return refkps;
+	}
+
+	Frame::PCPtr LidarOdometry::getISSKeypoints(){
+		Frame::PCPtr isskps = make_shared<vector<Vector3f>>();
+		for(auto& pt: isskps_src.points){
+			isskps->push_back(Vector3f(pt.x, pt.y, pt.z));
+		}
+		return isskps;
 	}
 
 	pcl::PointCloud<pcl::PointXYZ> LidarOdometry::eigen2pcl(Frame::PCPtr pcptr){

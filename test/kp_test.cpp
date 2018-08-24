@@ -27,10 +27,12 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 1;
+    int Start_Frame = 686;
     bool Show_SelectPT = true;
     double vert_init = -0.6;
-    double lowpt_th = -1950;
+    double lowpt_th = -1450;
+    string SR_Type = "CV";
+    string KP_Type = "SR";
 
 
     if(argc < 2){
@@ -89,6 +91,7 @@ int main( int argc, char* argv[] )
     vector<Vector3f> Keypoints;
     vector<cv::Vec3d> Trajectory;
     myslam::LidarOdometry lo;
+    lo.setSRType(SR_Type);
 
     vector<double> vertAngle = capture.getVerticalAngle();  // Degree
     sort(vertAngle.begin(), vertAngle.end());
@@ -204,7 +207,11 @@ int main( int argc, char* argv[] )
             viewer.showWidget( "Cloud", cloud );
 
             Keypoints.clear();
-            myslam::Frame::PCPtr kpsptr = fptr->getKeypoints();
+            myslam::Frame::PCPtr kpsptr;
+            if(KP_Type == "ISS")
+                kpsptr = lo.getISSKeypoints();
+            else
+                kpsptr = fptr->getKeypoints();
             for(vector<Vector3f>::iterator it = kpsptr->begin(); it != kpsptr->end(); it++){
                 Keypoints.push_back(R*(*it)+T);
             }
@@ -220,17 +227,21 @@ int main( int argc, char* argv[] )
                 buffer2[i] = v;
             }
             // Create Widget: keypoints
-            cv::Mat cloudMat2 = cv::Mat( static_cast<int>( buffer2.size() ), 1, CV_64FC3, &buffer2[0] );
-            cv::viz::WCloud cloud2( cloudMat2, cv::viz::Color::yellow() );
-            cloud2.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // Show Point Cloud
-            viewer.showWidget( "Cloud2", cloud2 );
+            if(KP_Type != "none"){
+                cv::Mat cloudMat2 = cv::Mat( static_cast<int>( buffer2.size() ), 1, CV_64FC3, &buffer2[0] );
+                cv::viz::WCloud cloud2( cloudMat2, cv::viz::Color::yellow() );
+                cloud2.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud2", cloud2 );
+            }
 
             // Create Widget: trajectory
-            cv::Mat trajMat = cv::Mat( static_cast<int>( Trajectory.size() ), 1, CV_64FC3, &Trajectory[0] );
-            cv::viz::WCloud traj( trajMat, cv::viz::Color::green() );
-            traj.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            viewer.showWidget( "Trajectory", traj );
+            if(KP_Type != "none"){
+                cv::Mat trajMat = cv::Mat( static_cast<int>( Trajectory.size() ), 1, CV_64FC3, &Trajectory[0] );
+                cv::viz::WCloud traj( trajMat, cv::viz::Color::green() );
+                traj.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                viewer.showWidget( "Trajectory", traj );
+            }
 
             // Create Widget: trajectory_load
             if(!LoadTrajectory.empty()){
@@ -241,9 +252,11 @@ int main( int argc, char* argv[] )
             }
 
             // Create current position
-            cv::viz::WCloud cur_pos(cv::Mat(1, 1, CV_64FC3, &(Trajectory.back())), cv::viz::Color::red());
-            cur_pos.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            viewer.showWidget( "Current position", cur_pos );
+            if(KP_Type != "none"){
+                cv::viz::WCloud cur_pos(cv::Mat(1, 1, CV_64FC3, &(Trajectory.back())), cv::viz::Color::red());
+                cur_pos.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                viewer.showWidget( "Current position", cur_pos );
+            }
 
             //// Correspondence visualization
             myslam::Frame::PCPtr refkpsptr = lo.getKeypoints();
@@ -261,55 +274,9 @@ int main( int argc, char* argv[] )
             cloud3.setRenderingProperty(cv::viz::POINT_SIZE, 4);
             corrviewer.showWidget( "Cloud3", cloud3 );
 
-            // // Create Widget: current keypoints in corresponding viewer
-            // vector<cv::Vec3d> buffer3(buffer2);
-            // // vector<cv::Vec3d> buffer3 = buffer2;
-            // cv::Mat cloudMat_ref = cv::Mat( static_cast<int>( buffer3.size() ), 1, CV_64FC3, &buffer3[0] );
-            // cv::viz::WCloud cloud_ref( cloudMat_ref, cv::viz::Color::yellow() );
-            // cloud_ref.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-
-            // cv::Affine3d ref_T = cv::Affine3d::Identity();
-            // ref_T.translation(cv::Vec3d(180000, 0, 0));
-            // cloud_ref.applyTransform(ref_T);
-            // corrviewer.showWidget( "Cloud_ref", cloud_ref );
-
-            // vector<cv::Vec3d> buffer4(buffer);
-            // cv::Mat cloudMat_ref_all = cv::Mat( static_cast<int>( buffer4.size() ), 1, CV_64FC3, &buffer4[0] );
-            // cv::viz::WCloud cloud_ref_all( cloudMat_ref_all, cv::viz::Color::white() );
-            // cloud_ref_all.applyTransform(ref_T);
-            // corrviewer.showWidget( "Cloud_ref_all", cloud_ref_all );
-
-            // // Create Widget: correspondences
-            // vector<pair<Vector3f,Vector3f> > corrs = lo.getCorrespondences();
-            // int linenum = 0;
-            // for(auto& corr: corrs){
-            //     Vector3f pt1_eigen = R*corr.first+T;
-            //     cv::Point3d pt1(pt1_eigen[0]+180000, pt1_eigen[1], pt1_eigen[2]);
-            //     cv::Point3d pt2(corr.second[0], corr.second[1], corr.second[2]);
-            //     cv::viz::WLine corrline(pt1, pt2, cv::viz::Color::pink());
-            //     // corrline.setRenderingProperty(cv::viz::LINE_WIDTH, 4);
-            //     corrviewer.showWidget("Correspond"+to_string(linenum++), corrline);
-            // } 
-
-            // if(corrs.size()<15){
-            //     cout<<"Limited correspondence: "<<corrs.size()<<endl;
-            //     // isStop = true;
-            // }
-
-            // // Create Widget: range
-            // cv::Point3d cent = Trajectory.back();
-            // cv::Point3d minpt(cent.x-80000, cent.y-80000, cent.z-80000);
-            // cv::Point3d maxpt(cent.x+80000, cent.y+80000, cent.z+80000);
-            // cv::viz::WCube range_cube(minpt, maxpt, false, cv::viz::Color::green());
-            // range_cube.setRenderingProperty(cv::viz::OPACITY, 0.3);
-            // corrviewer.showWidget( "Range_cube", range_cube );
-
-
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
-            // if(frame_id == 2681){
-                isStop = true;
-            // }
+            isStop = true;
 
         }
         viewer.spinOnce();

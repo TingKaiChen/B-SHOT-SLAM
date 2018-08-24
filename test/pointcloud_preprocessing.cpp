@@ -35,7 +35,7 @@ bool isStop = false;
 int main( int argc, char* argv[] )
 {
     // Parameters
-    int Start_Frame = 57;
+    int Start_Frame = 686;
     bool Show_SelectPT = true;
     double vert_init = -0.6;
     // double vert_init = -0.9;
@@ -44,6 +44,13 @@ int main( int argc, char* argv[] )
     double lowpt_th = -1950;
     // double lowpt_th = -3000;
     // double lowpt_th = -1450;
+    bool showHostCar = true;
+    bool showInitStPoint = true;
+    bool showSensorPosition = true;
+    bool showOCPoint = true;
+    bool showGroundPoint = true;
+    double showAzimuthLimit = 7;
+
 
     if(argc < 2){
         cerr<<"./odometry_test pcap_data [Save_File] [Load_File]"<<endl;
@@ -144,6 +151,8 @@ int main( int argc, char* argv[] )
             double sin_min = 0;
 
             for(auto& col: rimg){
+                if(col.first > showAzimuthLimit)
+                    continue;
                 double init_x = -2450/tan(vert_init)*sin(col.first);
                 double init_y = -2450/tan(vert_init)*cos(col.first);
                 double init_z = -2450;
@@ -210,7 +219,7 @@ int main( int argc, char* argv[] )
             // viewer2.showWidget( "Cloud", cloud );
 
             // Create Widget: ground point cloud
-            if(!buffer_g.empty()){
+            if(!buffer_g.empty() && showGroundPoint){
                 cv::Mat cloudMat_g = cv::Mat( static_cast<int>( buffer_g.size() ), 1, CV_64FC3, &buffer_g[0] );
                 cv::viz::WCloud cloud_g( cloudMat_g, cv::viz::Color::yellow() );
                 cloud_g.setRenderingProperty(cv::viz::POINT_SIZE, 4);
@@ -219,33 +228,41 @@ int main( int argc, char* argv[] )
             }
 
             // Create Widget: Sensor position
-            cv::Mat cloudMat_sensor = cv::Mat( static_cast<int>( buffer_sensor.size() ), 1, CV_64FC3, &buffer_sensor[0] );
-            cv::viz::WCloud cloud_sensor( cloudMat_sensor, cv::viz::Color::green() );
-            cloud_sensor.setRenderingProperty(cv::viz::POINT_SIZE, 8);
-            // Show Point Cloud
-            viewer.showWidget( "Cloud_sensor", cloud_sensor );
+            if(showSensorPosition){
+                cv::Mat cloudMat_sensor = cv::Mat( static_cast<int>( buffer_sensor.size() ), 1, CV_64FC3, &buffer_sensor[0] );
+                cv::viz::WCloud cloud_sensor( cloudMat_sensor, cv::viz::Color::green() );
+                cloud_sensor.setRenderingProperty(cv::viz::POINT_SIZE, 8);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud_sensor", cloud_sensor );
+            }
 
             // Create Widget: Initial start point
-            cv::Mat cloudMat_initpt = cv::Mat( static_cast<int>( buffer_initpt.size() ), 1, CV_64FC3, &buffer_initpt[0] );
-            cv::viz::WCloud cloud_initpt( cloudMat_initpt, cv::viz::Color::cyan() );
-            cloud_initpt.setRenderingProperty(cv::viz::POINT_SIZE, 2);
-            // Show Point Cloud
-            viewer.showWidget( "Cloud_initpt", cloud_initpt );
+            if(showInitStPoint){
+                cv::Mat cloudMat_initpt = cv::Mat( static_cast<int>( buffer_initpt.size() ), 1, CV_64FC3, &buffer_initpt[0] );
+                cv::viz::WCloud cloud_initpt( cloudMat_initpt, cv::viz::Color::cyan() );
+                cloud_initpt.setRenderingProperty(cv::viz::POINT_SIZE, 2);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud_initpt", cloud_initpt );
+            }
 
            //  // Create Widget: car point cloud
-           //  cv::Mat cloudMat_car = cv::Mat( static_cast<int>( buffer_car.size() ), 1, CV_64FC3, &buffer_car[0] );
-           //  // cv::viz::WCloud cloud_car( cloudMat_car, cv::viz::Color::green() );
-           // cv::viz::WCloud cloud_car( cloudMat_car, cv::viz::Color::red() );
-           //  cloud_car.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-           //  // Show Point Cloud
-           //  viewer.showWidget( "Cloud_car", cloud_car );
+            if(showHostCar){
+                cv::Mat cloudMat_car = cv::Mat( static_cast<int>( buffer_car.size() ), 1, CV_64FC3, &buffer_car[0] );
+                cv::viz::WCloud cloud_car( cloudMat_car, cv::viz::Color::green() );
+                // cv::viz::WCloud cloud_car( cloudMat_car, cv::viz::Color::red() );
+                cloud_car.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud_car", cloud_car );
+            }
 
-            // // Create Widget: occluded point cloud
-            // cv::Mat cloudMat_ocbg = cv::Mat( static_cast<int>( buffer_ocbg.size() ), 1, CV_64FC3, &buffer_ocbg[0] );
-            // cv::viz::WCloud cloud_ocbg( cloudMat_ocbg, cv::viz::Color::cyan() );
-            // cloud_ocbg.setRenderingProperty(cv::viz::POINT_SIZE, 4);
-            // // Show Point Cloud
-            // viewer.showWidget( "Cloud_ocbg", cloud_ocbg );
+            // Create Widget: occluded point cloud
+            if(showOCPoint){
+                cv::Mat cloudMat_ocbg = cv::Mat( static_cast<int>( buffer_ocbg.size() ), 1, CV_64FC3, &buffer_ocbg[0] );
+                cv::viz::WCloud cloud_ocbg( cloudMat_ocbg, cv::viz::Color::cyan() );
+                cloud_ocbg.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+                // Show Point Cloud
+                viewer.showWidget( "Cloud_ocbg", cloud_ocbg );
+            }
 
             // // Create Widget: current point cloud by preprocessor
             // for(auto it = pc->begin(); it != pc->end(); it++){
@@ -265,6 +282,7 @@ int main( int argc, char* argv[] )
             cout<<"ground sz:\t"<<buffer_g.size()<<endl;
             cout<<"car sz:\t"<<buffer_car.size()<<endl;
             cout<<"ocpt sz:\t"<<buffer_ocbg.size()<<endl;
+            cout<<"Accuracy:\t"<<buffer.size()/double(buffer.size()+buffer_g.size())<<endl;
             cout<<"Frame:\t#"<<(frame_id++)<<endl;
 
             // if(frame_id == 1){
